@@ -9,6 +9,7 @@
 #include <string.h>
 
 #define DEFAULT_STACK_ITEMS 10
+#define DEFAULT_BUFFER_SIZE 500
 #define SEQUENCE_CHAR ';'
 #define PIPE_CHAR '|'
 #define OR_SEQ "||"
@@ -315,13 +316,61 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
       command_t cmd_a = cmd_stack->pop();
       command_t cmd_b = cmd_stack->pop();
       if (cmd_a != NULL && cmd_b != NULL) {
-        command_t combined = NULL;
+        command_t combined = malloc(sizeof(command_t));
         combined->u.command[0] = cmd_a;
         combined->u.command[1] = cmd_b;
         cmd_stack->push(combined);
       }
     }
   }
+}
+
+// NOT YET IMPLEMENTED
+// builds the tree via the two stacks method
+command_node
+process_expression (char *buffer)
+{
+  stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
+  stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
+}
+
+// adds a new node to the stream
+void
+append_node (command_node node, command_stream_t stream)
+{
+  if (stream->head == NULL) {
+    stream->head = node;
+    stream->head->next = NULL;
+    stream->iterator = NULL;
+  } else if (stream->head->next == NULL){
+    stream->head->next = node;
+    stream->iterator = node;
+    stream->iterator->next = NULL;
+  } else {
+    stream->iterator->next = node;
+    stream->iterator = node;
+  }
+  stream->index++;
+}
+
+// safe append for the buffer, reallocs as necessary
+// adds a space before each operator for 420 offdarailz tokenization
+void
+buffer_append (char c, char *buffer, int *size, int *max)
+{
+  size++;
+  if (size >= max) {
+    max *= 2;
+    char *new_buf = malloc(sizeof(char) * max);
+    buffer = new_buf;
+  }
+
+  if (is_operator(c) && !is_operator(buffer[size-1])) {
+    buffer[size] = ' ';
+    size++;
+  }
+
+  buffer[size] = c;
 }
 
 command_stream_t
@@ -335,10 +384,9 @@ make_command_stream (int (*get_next_byte) (void *),
   stream->iterator = NULL;
 
   int lines_read = 0;
-  bool in_simple_command = false;
-  char *simple_command_buffer = malloc(sizeof(char));
-  stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
-  stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
+  char *expression_buffer = malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  int buffer_size = 0;
+  int buffer_max = DEFAULT_BUFFER_SIZE;
 
   char c;
   char last_char;
@@ -349,41 +397,28 @@ make_command_stream (int (*get_next_byte) (void *),
   // then parse that expression that you just made yo
   // basically this is shit and you should feel bad
 
-  while (c != EOF) {
-    c = get_next_byte(get_next_byte_argument);
+  while (c = get_next_byte(get_next_byte_argument) != EOF) {
     if (c == '\n') {
       lines_read++;
       if (last_char == '\n') {
-        // we finished an expression!
-
+        command_node new_node = process_expression(expression_buffer);
+        append_node(new_node, stream);
+        memset(&expression_buffer[0], 0, sizeof(expression_buffer));
+      } else {
+        buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
       }
-    } else if (c == ';' || c == '|' || c == '&') {
-      if (in_simple_command == true) {
-        in_simple_command = false;
-        command_t new_cmd = NULL;
-        tokenize_simple_command(simple_command_buffer, new_cmd);
-        cmd_stack->push(new_cmd);
-        memset(&simple_command_buffer[0], 0, sizeof(simple_command_buffer));
-      }
-      command_type ctype;
-      switch(c)
-      {
-        case ';':
-          command_type = SEQUENCE_COMMAND;
-          break;
-        case ''
-      }
-      handle_operator(c, cmd_stack, op_stack);
+    } else if (c == ';' || c == '|' || c == '&' || isalnum(c)) {
+      // replace this with a validation function eventually
+      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
+    } else {
+      // throw error because invalid character
     }
-
-    // when we finish an expression, load it into the node
-    // then link it to a new node that we're now working on
-    // if nothing exists,
     last_char = c;
   }
 
-  // okay dump all the shit from expression buffer back in because
-  // users don't like it when they lose their data
+  command_node new_node process_expression(expression_buffer);
+  append_node(new_node, stream);
+  memset(&expression_buffer[0], 0, sizeof(expression_buffer));
 
   stream->iterator = stream->head;
   return stream;
