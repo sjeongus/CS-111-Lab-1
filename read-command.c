@@ -76,7 +76,7 @@ peek (stack *self)
 }
 
 stack*
-initialize_stack (int max)
+init_stack (int max)
 {
   stack *new = malloc (sizeof (stack));
   new->size = 0;
@@ -130,23 +130,24 @@ make_command_stream (int (*get_next_byte) (void *),
   int lines_read = 0;
   bool in_simple_command = false;
   char *simple_command_buffer = malloc(sizeof(char));
-  stack *cmd_stack = initialize_stack(DEFAULT_STACK_ITEMS);
-  stack *op_stack = initialize_stack(DEFAULT_STACK_ITEMS);
+  stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
+  stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
 
   char c;
   char last_char;
 
-  //what the fuck are you doing
-  //okay so first you have to read shit into a buffer
-  //until you hit the DOUBLE NEWLINE or EOF
-  //then parse that expression that you just made yo
-  //basically this is shit and you should feel bad
+  // what the fuck are you doing
+  // okay so first you have to read shit into a buffer
+  // until you hit the DOUBLE NEWLINE or EOF
+  // then parse that expression that you just made yo
+  // basically this is shit and you should feel bad
 
   while (c != EOF) {
     c = get_next_byte(get_next_byte_argument);
     if (c == '\n') {
       lines_read++;
       if (last_char == '\n') {
+        // we finished an expression!
 
       }
     } else if (c == ';' || c == '|' || c == '&') {
@@ -173,6 +174,9 @@ make_command_stream (int (*get_next_byte) (void *),
     // if nothing exists,
     last_char = c;
   }
+
+  // okay dump all the shit from expression buffer back in because
+  // users don't like it when they lose their data
 
   stream->iterator = stream->head;
   return stream;
