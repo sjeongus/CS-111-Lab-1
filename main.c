@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "command.h"
+#include "read-command.c"
 
 static char const *program_name;
 static char const *script_name;
@@ -25,7 +26,15 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  int command_number = 1;
+  char* arr = "a | b && c || ( d )";
+  char* temp = tokenize_simple_command(arr);
+  int i;
+  int len = temp.strlen();
+  for (i = 0; i < len; i++)
+  {
+    printf(temp[i]);
+  }
+  /*int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;
   program_name = argv[0];
@@ -67,5 +76,5 @@ main (int argc, char **argv)
 	}
     }
 
-  return print_tree || !last_command ? 0 : command_status (last_command);
+  return print_tree || !last_command ? 0 : command_status (last_command);*/
 }
