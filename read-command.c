@@ -87,7 +87,25 @@ initialize_stack (int max)
 bool
 is_greater_precedence (command_type a, command_type b)
 {
-  //determine which has greater precedence, true if a > b
+  //determine which has greater precedence, true if a > 
+  if (a == ';' || a == '\n')
+  {
+    if (b == ';' || b == '\n')
+      return false;
+    else
+      return true;
+  }
+  if (a == '&&' || a == '||')
+  {
+    if (b == ';' || b == '\n')
+      return false;
+    else if (b == '&&' || b == '||')
+      return false;
+    else
+      return true;
+  }
+  if (a == '|')
+    return false;
 }
 
 char*
