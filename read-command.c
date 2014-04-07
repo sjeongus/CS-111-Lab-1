@@ -90,217 +90,23 @@ is_greater_precedence (command_type a, command_type b)
   //determine which has greater precedence, true if a > b
 }
 
-typedef enum
+char*
+tokenize_simple_command (char* buffer)
 {
-  NONE,
-  WORD,
-  SEMICOLON,
-  NEWLINE,
-  PIPE,
-  AND,
-  OR,
-  BEGIN_SUBSHELL,
-  END_SUBSHELL,
-  INPUT,
-  OUTPUT
-} token_type;
-
-typedef struct token token;
-struct token
-{
-  char* input_str;
-  token_type type;
-};
-
-typedef struct tokensarr tokensarr;
-struct tokensarr
-{
-  token* aToken;
-  int length;
-};
-
-token*
-append_token(token* old_list, int old_length, token input)
-{
-  old_list = checked_realloc(old_list, ((old_length+1)*sizeof(token)));
-  *(old_list + old_len) = input;
-  return old_list;
-}
-
-void
-tokenize_simple_command (char* buffer, command_t command)
-{
-  tokensarr* tarr = checked_malloc(sizeof(tokensarr));
-  tarr->aToken = NULL;
-  tarr->length = 0;
-
-  token curr;
-  curr.input_str = NULL;
-  curr.type = NONE;
-
-  int bufferlen = strlen(buffer);
-  int i;
-  for (i = 0; i < bufferlen-1; i++)
+  char* temp;
+  char* tokens = checked_malloc(sizeof(char*));
+  temp = strtok(buffer, ' ');
+  int i = 0;
+  int j = 1;
+  while(temp != NULL)
   {
-    char c = buffer[i];
-    switch (c)
-    {
-      case ';':
-      case '\n':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-
-        char* new_str = checked_malloc(2*sizeof(char));
-        new_str[0] = c;
-        new_str[1] = '\0';
-
-        curr.token_str = new_str;
-        if (c == ';')
-          curr.type = SEMICOLON;
-        else
-          curr.type = NEWLINE;
-        break;
-      }
-      case '|':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        if (i == bufferlen-1 || buff[i+1] != '|')
-        {
-          char* new_str = checked_malloc(2*sizeof(char));
-          new_str[0] = c;
-          new_str[1] = '\0';
-          curr.input_str = new_str;
-          curr.type = PIPE;
-        }
-        else
-        {
-          char* new_str = checked_malloc(3*sizeof(char));
-          new_str[0] = c;
-          new_str[1] = buffer[i+1];
-          new_str[2] = '\0';
-          curr.input_str = new_str;
-          curr.type = OR;
-          i++;
-        }
-        break;
-      }
-      case '&':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        if (i == bufferlen-1 || buffer[i+1] != '&')
-        {
-          //handle error
-        }
-        else
-        {
-          char* new_str = checked_malloc(3*sizeof(char));
-          new_str[0] = c;
-          new_str[1] = buffer[i+1];
-          new_str[2] = '\0';
-          curr.input_str = new_str;
-          curr.type = AND;
-          i++;
-        }
-        break;
-      }
-      case '(':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        char* new_str = checked_malloc(2*sizeof(char));
-        new_str[0] = c;
-        new_str[1] = '\0';
-        curr.input_str = new_str;
-        curr.type = BEGIN_SUBSHELL;
-        break;
-      }
-      case ')':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        char* new_str = checked_malloc(2*sizeof(char));
-        new_str[0] = c;
-        new_str[1] = '\0';
-        curr.input_str = new_str;
-        curr.type = END_SUBSHELL;
-        break;
-      }
-      case '<':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        char* new_str = checked_malloc(2*sizeof(char));
-        new_str[0] = c;
-        new_str[1] = '\0';
-        curr.input_str = new_str;
-        curr.type = INPUT;
-        break;
-      }
-      case '>':
-      {
-        if (curr.type != NONE)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        char* new_str = checked_malloc(2*sizeof(char));
-        new_str[0] = c;
-        new_str[1] = '\0';
-        curr.input_str = new_str;
-        curr.type = OUTPUT;
-        break;
-      }
-      case '\t':
-      case ' ':
-      {
-        if (curr.type != WORD)
-          break;
-      }
-      default:
-      {
-        if (curr.type != WORD)
-        {
-          tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-          tarr->length++;
-        }
-        curr.type = WORD;
-        curr.input_str = checekd_malloc(sizeof(char));
-        *curr.input_str = '\0';
-      }
-      int length = strlen(curr.input_str) + 1;
-      curr.input_str = checked_realloc(string, length);
-      curr.input_str[length-1] = c;
-      curr.input_str[length] = 0;
-      break;
-    }
+    tokens[i] = temp;
+    i++;
+    j++;
+    tokens = checked_realloc(tokens, j*sizeof(char*));
+    strtok(NULL, ' ');
   }
-  if (curr.type != NONE)
-  {
-    tarr->aToken = append_token(tarr->aToken, tarr->length, curr);
-    tarr->length++;
-  }
-  return tarr;
+  return tokens;
 }
 
 void
