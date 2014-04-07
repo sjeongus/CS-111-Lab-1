@@ -161,6 +161,8 @@ process_expression (char *buffer)
   int size = 0;
   char **tokens = tokenize_expression(buffer, &size);
 
+  command_node cnode;
+
   int i;
   for (i = 0; i < size; i++) {
     char* token = tokens[i];
@@ -201,9 +203,51 @@ process_expression (char *buffer)
           }
           break;
         }
+        default:
+          break;
       }
     }
   }
+  int i;
+  for (i = size; i >= 0; i--) {
+    char* token = tokens[i];
+    int tsize = strlen(token);
+    int j;
+    for (j = 0; j < tsize; j++)
+    {
+      char c = token[i];
+      if (c == ';' || c == '\n')
+      {
+        cnode.command = SEQUENCE_COMMAND;
+        break;
+      }
+      if (c =='|')
+      {
+        if (j == tsize-1 || token[j+1] != '|')
+        {
+          cnode.command = PIPE_COMMAND;
+        }
+        else
+        {
+          cnode.command = OR_COMMAND;
+        }
+          break;
+      }
+      if (c == '&')
+      {
+        if (j == tsize-1 || token[j+1] != '&')
+        {
+          // Handle errors
+        }
+        else
+        {
+          cnode.command = AND_COMMAND;
+        }
+        break;
+      }
+    }
+  }
+  return cnode;
 }
 
 // adds a new node to the stream
