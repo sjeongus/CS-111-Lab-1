@@ -163,7 +163,7 @@ process_expression (char *buffer)
 
   int i;
   for (i = 0; i < size; i++) {
-    
+
   }
 }
 
@@ -191,19 +191,19 @@ append_node (command_node node, command_stream_t stream)
 void
 buffer_append (char c, char *buffer, int *size, int *max)
 {
-  size++;
-  if (size >= max) {
-    max *= 2;
-    char *new_buf = malloc(sizeof(char) * max);
+  (*size)++;
+  if (*size >= *max) {
+    *max *= 2;
+    char *new_buf = malloc(sizeof(char) * (*max));
     buffer = new_buf;
   }
 
-  if (is_operator(c) && !is_operator(buffer[size-1])) {
-    buffer[size] = ' ';
-    size++;
+  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
+    buffer[*size] = ' ';
+    (*size)++;
   }
 
-  buffer[size] = c;
+  buffer[*size] = c;
 }
 
 command_stream_t
