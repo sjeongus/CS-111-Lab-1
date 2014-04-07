@@ -88,7 +88,7 @@ init_stack (int max)
 bool
 is_greater_precedence (command_type a, command_type b)
 {
-  //determine which has greater precedence, true if a > 
+  //determine which has greater precedence, true if a >
   if (a == ';' || a == '\n')
   {
     if (b == ';' || b == '\n')
@@ -109,8 +109,8 @@ is_greater_precedence (command_type a, command_type b)
     return false;
 }
 
-char*
-tokenize_simple_command (char* buffer)
+char**
+tokenize_expression (char* buffer, int *size)
 {
   char* temp;
   char* tokens = checked_malloc(sizeof(char*));
@@ -125,6 +125,7 @@ tokenize_simple_command (char* buffer)
     tokens = checked_realloc(tokens, j*sizeof(char*));
     strtok(NULL, ' ');
   }
+  size = i;
   return tokens;
 }
 
@@ -156,6 +157,14 @@ process_expression (char *buffer)
 {
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
+
+  int size = 0;
+  char **tokens = tokenize_expression(buffer, &size);
+
+  int i;
+  for (i = 0; i < size; i++) {
+    
+  }
 }
 
 // adds a new node to the stream
@@ -214,12 +223,6 @@ make_command_stream (int (*get_next_byte) (void *),
 
   char c;
   char last_char;
-
-  // what the fuck are you doing
-  // okay so first you have to read shit into a buffer
-  // until you hit the DOUBLE NEWLINE or EOF
-  // then parse that expression that you just made yo
-  // basically this is shit and you should feel bad
 
   while (c = get_next_byte(get_next_byte_argument) != EOF) {
     if (c == '\n') {
