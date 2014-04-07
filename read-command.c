@@ -11,6 +11,33 @@
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 
+typedef enum
+{
+  NONE,
+  WORD,
+  SEMICOLON,
+  NEWLINE,
+  PIPE,
+  AND,
+  OR,
+  BEGIN_SUBSHELL,
+  END_SUBSHELL,
+  INPUT,
+  OUTPUT
+} TOKEN_TYPE;
+
+typedef struct
+{
+  char* input_str;
+  TOKEN_TYPE type;
+} token;
+
+typedef struct
+{
+  token* tok;
+  int length;
+} tokensarr;
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
