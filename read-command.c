@@ -89,23 +89,23 @@ bool
 is_greater_precedence (command_type a, command_type b)
 {
   //determine which has greater precedence, true if a >
-  if (a == ';' || a == '\n')
+  if (a == SEQUENCE_COMMAND)
   {
-    if (b == ';' || b == '\n')
+    if (b == SEQUENCE_COMMAND)
       return false;
     else
       return true;
   }
-  if (a == '&&' || a == '||')
+  if (a == AND_COMMAND || a == OR_COMMAND)
   {
-    if (b == ';' || b == '\n')
+    if (b == SEQUENCE_COMMAND)
       return false;
-    else if (b == '&&' || b == '||')
+    else if (b == AND_COMMAND || b == OR_COMMAND)
       return false;
     else
       return true;
   }
-  if (a == '|')
+  if (a == PIPE_COMMAND)
     return false;
 }
 
@@ -163,7 +163,46 @@ process_expression (char *buffer)
 
   int i;
   for (i = 0; i < size; i++) {
-
+    char* token = tokens[i];
+    int tsize = strlen(token);
+    int j;
+    for (j = 0; j < tsize; j++)
+    {
+      char c = token[i];
+      switch
+      {
+        case ';':
+        case '\n':
+        {
+          handle_operator (SEQUENCE_COMMAND, cmd_stack, op_stack);
+          break;
+        }
+        case '|':
+        {
+          if (j == tsize-1 || token[j+1] != '|')
+          {
+            handle_operator (PIPE_COMMAND, cmd_stack, op_stack);
+          }
+          else
+          {
+            handle_operator (OR_COMMAND, cmd_stack, op_stack);
+          }
+          break;
+        }
+        case '&':
+        {
+          if (j == tsize-1 || token[j+1] != '&')
+          {
+            // Handle errors
+          }
+          else
+          {
+            handle_operator (AND_COMMAND, cmd_stack, op_stack);
+          }
+          break;
+        }
+      }
+    }
   }
 }
 
