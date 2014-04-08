@@ -4,6 +4,8 @@
 #include <error.h>
 #include <getopt.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "command.h"
 #include "read-command.h"
@@ -26,14 +28,14 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  char* arr = "a | b && c || ( d )";
-  char* temp = tokenize_expression(arr);
-  int i;
-  int len = strlen(temp);
-  for (i = 0; i < len; i++)
-  {
-    printf(temp[i]);
-  }
+  stack *teststack = init_stack(5);
+  command_t cmd = malloc(sizeof(command_t));
+  cmd->type = AND_COMMAND;
+  push(teststack, cmd);
+  command_t newcmd = pop(teststack);
+  command_type ct = newcmd->type;
+  
+
   /*int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;

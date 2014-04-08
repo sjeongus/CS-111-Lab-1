@@ -1,8 +1,11 @@
 // UCLA CS 111 Lab 1 command reading
 
+#include "read-command.h"
+/*
 #include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
+*/
 
 #include <stdio.h>
 #include <error.h>
@@ -18,6 +21,7 @@
 #define OR_SEQ "||"
 #define AND_SEQ "&&"
 
+/*
 typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
@@ -46,14 +50,14 @@ struct stack
   command_t (* pop)();
   command_t (* peek)();
 };
+*/
 
 void
 push (stack *self, command_t command)
 {
   if (self->size == self->max_size) {
     self->max_size *= 2;
-    command_t *new = malloc(self->max_size * sizeof (command_t));
-    self->commands = new;
+    self->commands = checked_realloc(self->commands, self->max_size * sizeof(command_t));
   }
 
   self->commands[self->size] = command;
@@ -63,9 +67,10 @@ push (stack *self, command_t command)
 command_t
 pop (stack *self)
 {
-  if (self->size > 0)
-    return self->commands[self->size--];
-  else
+  if (self->size > 0) {
+    self->size--;
+    return self->commands[self->size];
+  } else
     return NULL;
 }
 
@@ -82,10 +87,10 @@ peek (stack *self)
 stack*
 init_stack (int max)
 {
-  stack *new = malloc (sizeof (stack));
+  stack *new = malloc(sizeof(stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc(max * sizeof (command_t));
+  new->commands = malloc(max * sizeof(command_t));
   return new;
 }
 
@@ -183,26 +188,26 @@ tokenize_expression (char* buffer, int *size)
 void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
-  if (is_greater_precedence(op, op_stack->peek()->type) || op_stack->size == 0) {
+  if (is_greater_precedence(op, peek(op_stack)->type) || op_stack->size == 0) {
     command_t new_op = malloc(sizeof(command_t));
     new_op->type = op;
-    op_stack->push(new_op);
+    push(op_stack, new_op);
   } else {
     command_type cur = op;
-    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, op_stack->peek()->type)) {
-      cur = op_stack->pop()->type;
-      command_t cmd_a = cmd_stack->pop();
-      command_t cmd_b = cmd_stack->pop();
+    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, peek(op_stack)->type)) {
+      cur = pop(op_stack)->type;
+      command_t cmd_a = pop(cmd_stack);
+      command_t cmd_b = pop(cmd_stack);
       if (cmd_a != NULL && cmd_b != NULL) {
         command_t combined = malloc(sizeof(command_t));
         combined->u.command[0] = cmd_a;
         combined->u.command[1] = cmd_b;
-        cmd_stack->push(combined);
+        push(cmd_stack, combined);
       }
     }
     command_t new_op = malloc(sizeof(command_t));
     new_op->type = op;
-    op_stack->push(new_op);
+    push(op_stack, new_op);
   }
 }
 
@@ -217,7 +222,7 @@ handle_command (char **words, stack *cmd_stack, int num_words)
     free(words[i]);
   }
   new_command->u.word = commands;
-  cmd_stack->push(new_command);
+  push(cmd_stack, new_command);
 }
 
 bool
@@ -286,20 +291,24 @@ process_expression (char *buffer)
   command_type cur;
 
   while (cmd_rem != NULL && op_rem != NULL) {
-    cur = op_stack->pop()->type;
-    command_t cmd_a = cmd_stack->pop();
-    command_t cmd_b = cmd_stack->pop();
+    cur = pop(op_stack)->type;
+    command_t cmd_a = pop(cmd_stack);
+    command_t cmd_b = pop(cmd_stack);
     if (cmd_a != NULL && cmd_b != NULL) {
       command_t combined = malloc(sizeof(command_t));
       combined->u.command[0] = cmd_a;
       combined->u.command[1] = cmd_b;
-      cmd_stack->push(combined);
+      push(cmd_stack, combined);
     }
   }
 
   // we should be guaranteed that the last thing on the command stack
   // is the root node of the tree...hopefully
-  cnode->command = cmd_stack->pop();
+  cnode->command = pop(cmd_stack);
+
+  free(cmd_stack);
+  free(op_stack);
+
   return cnode;
 }
 

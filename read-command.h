@@ -13,6 +13,30 @@ typedef struct command_stream command_stream;
 typedef struct stack stack;
 typedef enum command_type command_type;
 
+struct command_node
+{
+  command_t command;
+  command_node *next;
+};
+
+struct command_stream
+{
+  command_node *head;
+  command_node *iterator;
+  int index;
+  int size;
+};
+
+struct stack
+{
+  command_t *commands;
+  int size;
+  int max_size;
+  void (* push)();
+  command_t (* pop)();
+  command_t (* peek)();
+};
+
 void push (stack *self, command_t command);
 
 command_t pop (stack *self);
