@@ -307,16 +307,16 @@ void
 append_node (command_node *node, command_stream_t stream)
 {
   if (stream->head == NULL) {
-    *(stream->head) = node;
+    stream->head = node;
     stream->head->next = NULL;
     stream->iterator = NULL;
   } else if (stream->head->next == NULL){
-    *(stream->head)->next = node;
-    *(stream->iterator) = node;
+    stream->head->next = node;
+    stream->iterator = node;
     stream->iterator->next = NULL;
   } else {
-    *(stream->iterator)->next = node;
-    *(stream->iterator) = node;
+    stream->iterator->next = node;
+    stream->iterator = node;
   }
   stream->index++;
 }
