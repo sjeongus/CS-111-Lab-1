@@ -95,34 +95,28 @@ init_stack (int max)
   return new;
 }
 
+// Tested and works!
 bool
 is_operator (char c)
 {
   switch (c)
   {
-    case '!':
-    case '%':
-    case '+':
-    case ',':
-    case '-':
-    case '.':
-    case '/':
-    case ':':
-    case '@':
-    case '^':
-    case '_':
+    case '|':
+    case '&':
+    case ';':
+    case '(':
       return true;
     default:
       return false;
   }
 }
 
+// Tested and works!
 // safe append for the buffer, reallocs as necessary
 // adds a space before each operator for 420 offdarailz tokenization
 void
 buffer_append (char c, char *buffer, int *size, int *max)
 {
-  (*size)++;
   if (*size >= *max) {
     *max *= 2;
     buffer = checked_realloc(buffer, *max);
@@ -134,9 +128,8 @@ buffer_append (char c, char *buffer, int *size, int *max)
     (*size)++;
   }
 
-  if (isalnum(c) && is_operator(buffer[(*size)-1])
-
   buffer[*size] = c;
+  (*size)++;
 }
 
 void

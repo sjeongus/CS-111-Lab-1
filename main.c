@@ -28,7 +28,21 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
+  char arr[] = "a|b||c&&d";
+  char narr[500];
+  strcpy(narr, arr);
 
+  int buffer_max = 500;
+  int buffer_size = 0;
+  char *buffer = malloc(sizeof(char) * buffer_max);
+
+  unsigned int j;
+  for (j = 0; j < strlen(narr); j++) {
+    buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
+  }
+
+  printf("%s\n", narr);
+  printf("%s\n", buffer);
 
   /*int command_number = 1;
   bool print_tree = false;
