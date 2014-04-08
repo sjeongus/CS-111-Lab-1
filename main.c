@@ -28,13 +28,7 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  stack *teststack = init_stack(5);
-  command_t cmd = malloc(sizeof(command_t));
-  cmd->type = AND_COMMAND;
-  push(teststack, cmd);
-  command_t newcmd = pop(teststack);
-  command_type ct = newcmd->type;
-  
+
 
   /*int command_number = 1;
   bool print_tree = false;
