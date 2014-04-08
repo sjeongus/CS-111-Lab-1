@@ -7,6 +7,7 @@
 #include <error.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define DEFAULT_STACK_ITEMS 10
 #define DEFAULT_BUFFER_SIZE 500
@@ -18,7 +19,6 @@
 typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
-typedef enum { false, true } bool;
 
 struct command_node
 {
@@ -113,7 +113,7 @@ char**
 tokenize_expression (char* buffer, int *size)
 {
   char* temp;
-  char* tokens = checked_malloc(sizeof(char*));
+  char** tokens = malloc(sizeof(char*));
   temp = strtok(buffer, ' ');
   int i = 0;
   int j = 1;
@@ -122,10 +122,10 @@ tokenize_expression (char* buffer, int *size)
     tokens[i] = temp;
     i++;
     j++;
-    tokens = checked_realloc(tokens, j*sizeof(char*));
+    tokens = realloc(tokens, j*sizeof(char*));
     strtok(NULL, ' ');
   }
-  size = i;
+  *size = i;
   return tokens;
 }
 
@@ -171,7 +171,7 @@ process_expression (char *buffer)
     for (j = 0; j < tsize; j++)
     {
       char c = token[i];
-      switch
+      switch(c)
       {
         case ';':
         case '\n':
@@ -208,14 +208,14 @@ process_expression (char *buffer)
       }
     }
   }
-  int i;
-  for (i = size; i >= 0; i--) {
-    char* token = tokens[i];
+  int k;
+  for (k = size; k >= 0; k--) {
+    char* token = tokens[k];
     int tsize = strlen(token);
-    int j;
-    for (j = 0; j < tsize; j++)
+    int p;
+    for (p = 0; p < tsize; p++)
     {
-      char c = token[i];
+      char c = token[p];
       if (c == ';' || c == '\n')
       {
         cnode.command = SEQUENCE_COMMAND;
@@ -223,7 +223,7 @@ process_expression (char *buffer)
       }
       if (c =='|')
       {
-        if (j == tsize-1 || token[j+1] != '|')
+        if (p == tsize-1 || token[p+1] != '|')
         {
           cnode.command = PIPE_COMMAND;
         }
@@ -235,7 +235,7 @@ process_expression (char *buffer)
       }
       if (c == '&')
       {
-        if (j == tsize-1 || token[j+1] != '&')
+        if (p == tsize-1 || token[p+1] != '&')
         {
           // Handle errors
         }
@@ -255,16 +255,16 @@ void
 append_node (command_node node, command_stream_t stream)
 {
   if (stream->head == NULL) {
-    stream->head = node;
+    *(stream->head) = node;
     stream->head->next = NULL;
     stream->iterator = NULL;
   } else if (stream->head->next == NULL){
-    stream->head->next = node;
-    stream->iterator = node;
+    *(stream->head)->next = node;
+    *(stream->iterator) = node;
     stream->iterator->next = NULL;
   } else {
-    stream->iterator->next = node;
-    stream->iterator = node;
+    *(stream->iterator)->next = node;
+    *(stream->iterator) = node;
   }
   stream->index++;
 }
@@ -326,7 +326,7 @@ make_command_stream (int (*get_next_byte) (void *),
     last_char = c;
   }
 
-  command_node new_node process_expression(expression_buffer);
+  command_node new_node; process_expression(expression_buffer);
   append_node(new_node, stream);
   memset(&expression_buffer[0], 0, sizeof(expression_buffer));
 
