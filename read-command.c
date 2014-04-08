@@ -134,8 +134,6 @@ buffer_append (char c, char *buffer, int *size, int *max)
     (*size)++;
   }
 
-  if (isalnum(c) && is_operator(buffer[(*size)-1])
-
   buffer[*size] = c;
 }
 
