@@ -8,6 +8,7 @@
 #include <error.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define DEFAULT_WORDS 5
 #define DEFAULT_STACK_ITEMS 10
@@ -21,7 +22,6 @@ typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
 typedef enum command_type command_type;
-typedef enum { false, true } bool;
 
 struct command_node
 {
@@ -89,6 +89,53 @@ init_stack (int max)
 }
 
 bool
+is_operator (char c)
+{
+  switch (c)
+  {
+    case '!':
+    case '%':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case '@':
+    case '^':
+    case '_':
+      return true;
+    default:
+      return false;
+  }
+}
+
+// safe append for the buffer, reallocs as necessary
+// adds a space before each operator for 420 offdarailz tokenization
+void
+buffer_append (char c, char *buffer, int *size, int *max)
+{
+  (*size)++;
+  if (*size >= *max) {
+    *max *= 2;
+    buffer = checked_realloc(buffer, *max);
+  }
+
+  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
+    buffer[*size] = ' ';
+    (*size)++;
+  }
+
+  buffer[*size] = c;
+}
+
+void
+clear_buffer (char *buffer)
+{
+  memset(&buffer[0], 0, sizeof(buffer));
+}
+
+bool
 is_greater_precedence (command_type a, command_type b)
 {
   //determine which has greater precedence, true if a >
@@ -135,13 +182,13 @@ tokenize_expression (char* buffer, int *size)
 void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
-  if (is_greater_precedence(op->type, op_stack->peek()->type)) {
-    op_stack->push(op);
-  } else if (op_stack->size == 0) {
-    op_stack->push(op);
+  if (is_greater_precedence(op, op_stack->peek()->type) || op_stack->size == 0) {
+    command_t new_op = malloc(sizeof(command_t));
+    new_op->type = op;
+    op_stack->push(new_op);
   } else {
     command_type cur = op;
-    while(cur->type != SUBSHELL_COMMAND && !is_greater_precedence(op->type, op_stack->peek()->type)) {
+    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, op_stack->peek()->type)) {
       cur = op_stack->pop()->type;
       command_t cmd_a = cmd_stack->pop();
       command_t cmd_b = cmd_stack->pop();
@@ -152,7 +199,9 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
         cmd_stack->push(combined);
       }
     }
-    op_stack->push(op);
+    command_t new_op = malloc(sizeof(command_t));
+    new_op->type = op;
+    op_stack->push(new_op);
   }
 }
 
@@ -160,12 +209,22 @@ void
 handle_command (char **words, stack *cmd_stack)
 {
   command_t new_command = malloc(sizeof(command_t));
-  new_command->u.words = words;
+  new_command->u.word = words;
   cmd_stack->push(new_command);
 }
 
+bool
+is_simple_command (char* token)
+{
+  unsigned int i;
+  for (i = 0; i < strlen(token); i++) {
+    if (!isalnum(token[i])) return false;
+  }
+  return true;
+}
+
 // builds the tree via the two stacks method
-command_node
+command_node*
 process_expression (char *buffer)
 {
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
@@ -176,7 +235,7 @@ process_expression (char *buffer)
   int size = 0;
   char **tokens = tokenize_expression(buffer, &size);
 
-  command_node cnode = malloc(sizeof(command_node));
+  command_node *cnode = malloc(sizeof(command_node));
 
   int i;
   int word_number = 0;
@@ -190,7 +249,7 @@ process_expression (char *buffer)
       int buffer_size = 0;
       char *buffer = malloc(sizeof(char) * buffer_max);
 
-      int j;
+      unsigned int j;
       for (j = 0; j < strlen(token); j++) {
         buffer_append(token[j], buffer, &buffer_size, &buffer_max);
       }
@@ -210,7 +269,7 @@ process_expression (char *buffer)
     }
   }
 
-  command_t cmd_rem = cmd->peek();
+  command_t cmd_rem = cmd_stack->peek();
   command_t op_rem = op_stack->peek();
   command_type cur;
 
@@ -234,7 +293,7 @@ process_expression (char *buffer)
 
 // adds a new node to the stream
 void
-append_node (command_node node, command_stream_t stream)
+append_node (command_node *node, command_stream_t stream)
 {
   if (stream->head == NULL) {
     stream->head = node;
@@ -249,31 +308,6 @@ append_node (command_node node, command_stream_t stream)
     stream->iterator = node;
   }
   stream->index++;
-}
-
-// safe append for the buffer, reallocs as necessary
-// adds a space before each operator for 420 offdarailz tokenization
-void
-buffer_append (char c, char *buffer, int *size, int *max)
-{
-  (*size)++;
-  if (*size >= *max) {
-    *max *= 2;
-    buffer = checked_realloc(buffer, *max);
-  }
-
-  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
-    buffer[*size] = ' ';
-    (*size)++;
-  }
-
-  buffer[*size] = c;
-}
-
-void
-clear_buffer (char *buffer)
-{
-  memset(&buffer[0], 0, sizeof(buffer));
 }
 
 command_stream_t
@@ -294,11 +328,11 @@ make_command_stream (int (*get_next_byte) (void *),
   char c;
   char last_char;
 
-  while (c = get_next_byte(get_next_byte_argument) != EOF) {
+  while ((c = get_next_byte(get_next_byte_argument)) != EOF) {
     if (c == '\n') {
       lines_read++;
       if (last_char == '\n') {
-        command_node new_node = process_expression(expression_buffer);
+        command_node *new_node = process_expression(expression_buffer);
         append_node(new_node, stream);
         clear_buffer(expression_buffer);
       } else {
@@ -313,7 +347,7 @@ make_command_stream (int (*get_next_byte) (void *),
     last_char = c;
   }
 
-  command_node new_node process_expression(expression_buffer);
+  command_node *new_node = process_expression(expression_buffer);
   append_node(new_node, stream);
   memset(&expression_buffer[0], 0, sizeof(expression_buffer));
 
