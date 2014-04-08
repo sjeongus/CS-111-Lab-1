@@ -1,5 +1,6 @@
 // UCLA CS 111 Lab 1 command reading
 
+#include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
 
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEFAULT_WORDS 5
 #define DEFAULT_STACK_ITEMS 10
 #define DEFAULT_BUFFER_SIZE 500
 #define SEQUENCE_CHAR ';'
@@ -18,6 +20,7 @@
 typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
+typedef enum command_type command_type;
 typedef enum { false, true } bool;
 
 struct command_node
@@ -137,7 +140,9 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
   } else if (op_stack->size == 0) {
     op_stack->push(op);
   } else {
-    while(op->type != SUBSHELL_COMMAND && !is_greater_precedence(op->type, op_stack->pop()->type)) {
+    command_type cur = op;
+    while(cur->type != SUBSHELL_COMMAND && !is_greater_precedence(op->type, op_stack->peek()->type)) {
+      cur = op_stack->pop()->type;
       command_t cmd_a = cmd_stack->pop();
       command_t cmd_b = cmd_stack->pop();
       if (cmd_a != NULL && cmd_b != NULL) {
@@ -147,10 +152,18 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
         cmd_stack->push(combined);
       }
     }
+    op_stack->push(op);
   }
 }
 
-// NOT YET IMPLEMENTED
+void
+handle_command (char **words, stack *cmd_stack)
+{
+  command_t new_command = malloc(sizeof(command_t));
+  new_command->u.words = words;
+  cmd_stack->push(new_command);
+}
+
 // builds the tree via the two stacks method
 command_node
 process_expression (char *buffer)
@@ -158,95 +171,64 @@ process_expression (char *buffer)
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
 
+  char **words = malloc(sizeof(char*) * DEFAULT_WORDS);
+
   int size = 0;
   char **tokens = tokenize_expression(buffer, &size);
 
-  command_node cnode;
+  command_node cnode = malloc(sizeof(command_node));
 
   int i;
+  int word_number = 0;
+
   for (i = 0; i < size; i++) {
     char* token = tokens[i];
-    int tsize = strlen(token);
-    int j;
-    for (j = 0; j < tsize; j++)
-    {
-      char c = token[i];
-      switch
-      {
-        case ';':
-        case '\n':
-        {
-          handle_operator (SEQUENCE_COMMAND, cmd_stack, op_stack);
-          break;
-        }
-        case '|':
-        {
-          if (j == tsize-1 || token[j+1] != '|')
-          {
-            handle_operator (PIPE_COMMAND, cmd_stack, op_stack);
-          }
-          else
-          {
-            handle_operator (OR_COMMAND, cmd_stack, op_stack);
-          }
-          break;
-        }
-        case '&':
-        {
-          if (j == tsize-1 || token[j+1] != '&')
-          {
-            // Handle errors
-          }
-          else
-          {
-            handle_operator (AND_COMMAND, cmd_stack, op_stack);
-          }
-          break;
-        }
-        default:
-          break;
+
+    // if the token is part of a simple command, shove it into a buffer
+    if (is_simple_command(token)) {
+      int buffer_max = DEFAULT_BUFFER_SIZE;
+      int buffer_size = 0;
+      char *buffer = malloc(sizeof(char) * buffer_max);
+
+      int j;
+      for (j = 0; j < strlen(token); j++) {
+        buffer_append(token[j], buffer, &buffer_size, &buffer_max);
       }
+      words[word_number] = buffer;
+      word_number++;
+    } else if (token[0] == token[1]) { // now let's check if it's an operator!
+      if (token[0] == '&') {
+        handle_command(words, cmd_stack);
+        handle_operator(AND_COMMAND, cmd_stack, op_stack);
+      } else if (token[0] == '|') {
+        handle_command(words, cmd_stack);
+        handle_operator(OR_COMMAND, cmd_stack, op_stack);
+      }
+    } else if (strlen(token) == 1 && token[0] == '|') {
+      handle_command(words, cmd_stack);
+      handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
     }
   }
-  int i;
-  for (i = size; i >= 0; i--) {
-    char* token = tokens[i];
-    int tsize = strlen(token);
-    int j;
-    for (j = 0; j < tsize; j++)
-    {
-      char c = token[i];
-      if (c == ';' || c == '\n')
-      {
-        cnode.command = SEQUENCE_COMMAND;
-        break;
-      }
-      if (c =='|')
-      {
-        if (j == tsize-1 || token[j+1] != '|')
-        {
-          cnode.command = PIPE_COMMAND;
-        }
-        else
-        {
-          cnode.command = OR_COMMAND;
-        }
-          break;
-      }
-      if (c == '&')
-      {
-        if (j == tsize-1 || token[j+1] != '&')
-        {
-          // Handle errors
-        }
-        else
-        {
-          cnode.command = AND_COMMAND;
-        }
-        break;
-      }
+
+  command_t cmd_rem = cmd->peek();
+  command_t op_rem = op_stack->peek();
+  command_type cur;
+
+  while (cmd_rem != NULL && op_rem != NULL) {
+    cur = op_stack->pop()->type;
+    command_t cmd_a = cmd_stack->pop();
+    command_t cmd_b = cmd_stack->pop();
+    if (cmd_a != NULL && cmd_b != NULL) {
+      command_t combined = malloc(sizeof(command_t));
+      combined->u.command[0] = cmd_a;
+      combined->u.command[1] = cmd_b;
+      cmd_stack->push(combined);
     }
   }
+
+  // we should be guaranteed that the last thing on the command stack
+  // is the root node of the tree...hopefully
+  cnode->command = cmd_stack->pop();
   return cnode;
 }
 
@@ -277,8 +259,7 @@ buffer_append (char c, char *buffer, int *size, int *max)
   (*size)++;
   if (*size >= *max) {
     *max *= 2;
-    char *new_buf = malloc(sizeof(char) * (*max));
-    buffer = new_buf;
+    buffer = checked_realloc(buffer, *max);
   }
 
   if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
@@ -287,6 +268,12 @@ buffer_append (char c, char *buffer, int *size, int *max)
   }
 
   buffer[*size] = c;
+}
+
+void
+clear_buffer (char *buffer)
+{
+  memset(&buffer[0], 0, sizeof(buffer));
 }
 
 command_stream_t
@@ -313,7 +300,7 @@ make_command_stream (int (*get_next_byte) (void *),
       if (last_char == '\n') {
         command_node new_node = process_expression(expression_buffer);
         append_node(new_node, stream);
-        memset(&expression_buffer[0], 0, sizeof(expression_buffer));
+        clear_buffer(expression_buffer);
       } else {
         buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
       }
