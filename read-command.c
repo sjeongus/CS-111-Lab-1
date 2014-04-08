@@ -1,5 +1,6 @@
 // UCLA CS 111 Lab 1 command reading
 
+#include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
 
@@ -7,8 +8,9 @@
 #include <error.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+#include <ctype.h>
 
+#define DEFAULT_WORDS 5
 #define DEFAULT_STACK_ITEMS 10
 #define DEFAULT_BUFFER_SIZE 500
 #define SEQUENCE_CHAR ';'
@@ -19,6 +21,7 @@
 typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
+typedef enum command_type command_type;
 
 struct command_node
 {
@@ -49,7 +52,7 @@ push (stack *self, command_t command)
 {
   if (self->size == self->max_size) {
     self->max_size *= 2;
-    command_t *new = malloc (self->max_size * sizeof (command_t));
+    command_t *new = malloc(self->max_size * sizeof (command_t));
     self->commands = new;
   }
 
@@ -82,7 +85,55 @@ init_stack (int max)
   stack *new = malloc (sizeof (stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc (max * sizeof (command_t));
+  new->commands = malloc(max * sizeof (command_t));
+  return new;
+}
+
+bool
+is_operator (char c)
+{
+  switch (c)
+  {
+    case '!':
+    case '%':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case '@':
+    case '^':
+    case '_':
+      return true;
+    default:
+      return false;
+  }
+}
+
+// safe append for the buffer, reallocs as necessary
+// adds a space before each operator for 420 offdarailz tokenization
+void
+buffer_append (char c, char *buffer, int *size, int *max)
+{
+  (*size)++;
+  if (*size >= *max) {
+    *max *= 2;
+    buffer = checked_realloc(buffer, *max);
+  }
+
+  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
+    buffer[*size] = ' ';
+    (*size)++;
+  }
+
+  buffer[*size] = c;
+}
+
+void
+clear_buffer (char *buffer)
+{
+  memset(&buffer[0], 0, sizeof(buffer));
 }
 
 bool
@@ -132,12 +183,14 @@ tokenize_expression (char* buffer, int *size)
 void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
-  if (is_greater_precedence(op->type, op_stack->peek()->type)) {
-    op_stack->push(op);
-  } else if (op_stack->size == 0) {
-    op_stack->push(op);
+  if (is_greater_precedence(op, op_stack->peek()->type) || op_stack->size == 0) {
+    command_t new_op = malloc(sizeof(command_t));
+    new_op->type = op;
+    op_stack->push(new_op);
   } else {
-    while(op->type != SUBSHELL_COMMAND && !is_greater_precedence(op->type, op_stack->pop()->type)) {
+    command_type cur = op;
+    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, op_stack->peek()->type)) {
+      cur = op_stack->pop()->type;
       command_t cmd_a = cmd_stack->pop();
       command_t cmd_b = cmd_stack->pop();
       if (cmd_a != NULL && cmd_b != NULL) {
@@ -147,146 +200,126 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
         cmd_stack->push(combined);
       }
     }
+    command_t new_op = malloc(sizeof(command_t));
+    new_op->type = op;
+    op_stack->push(new_op);
   }
 }
 
-// NOT YET IMPLEMENTED
+void
+handle_command (char **words, stack *cmd_stack, int num_words)
+{
+  command_t new_command = malloc(sizeof(command_t));
+  char **commands = malloc(sizeof(char*) * num_words);
+  int i;
+  for (i = 0; i < num_words; i++) {
+    strcpy(commands[i], words[i]);
+    free(words[i]);
+  }
+  new_command->u.word = commands;
+  cmd_stack->push(new_command);
+}
+
+bool
+is_simple_command (char* token)
+{
+  unsigned int i;
+  for (i = 0; i < strlen(token); i++) {
+    if (!isalnum(token[i])) return false;
+  }
+  return true;
+}
+
 // builds the tree via the two stacks method
-command_node
+command_node*
 process_expression (char *buffer)
 {
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
 
+  char **words = malloc(sizeof(char*) * DEFAULT_WORDS);
+
   int size = 0;
   char **tokens = tokenize_expression(buffer, &size);
 
-  command_node cnode;
+  command_node *cnode = malloc(sizeof(command_node));
 
   int i;
+  int word_number = 0;
+
   for (i = 0; i < size; i++) {
     char* token = tokens[i];
-    int tsize = strlen(token);
-    int j;
-    for (j = 0; j < tsize; j++)
-    {
-      char c = token[i];
-      switch(c)
-      {
-        case ';':
-        case '\n':
-        {
-          handle_operator (SEQUENCE_COMMAND, cmd_stack, op_stack);
-          break;
-        }
-        case '|':
-        {
-          if (j == tsize-1 || token[j+1] != '|')
-          {
-            handle_operator (PIPE_COMMAND, cmd_stack, op_stack);
-          }
-          else
-          {
-            handle_operator (OR_COMMAND, cmd_stack, op_stack);
-          }
-          break;
-        }
-        case '&':
-        {
-          if (j == tsize-1 || token[j+1] != '&')
-          {
-            // Handle errors
-          }
-          else
-          {
-            handle_operator (AND_COMMAND, cmd_stack, op_stack);
-          }
-          break;
-        }
-        default:
-          break;
+
+    // if the token is part of a simple command, shove it into a buffer
+    if (is_simple_command(token)) {
+      int buffer_max = DEFAULT_BUFFER_SIZE;
+      int buffer_size = 0;
+      char *buffer = malloc(sizeof(char) * buffer_max);
+
+      unsigned int j;
+      for (j = 0; j < strlen(token); j++) {
+        buffer_append(token[j], buffer, &buffer_size, &buffer_max);
       }
+      words[word_number] = buffer;
+      word_number++;
+    } else if (token[0] == token[1]) { // now let's check if it's an operator!
+      if (token[0] == '&') {
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
+        handle_operator(AND_COMMAND, cmd_stack, op_stack);
+      } else if (token[0] == '|') {
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
+        handle_operator(OR_COMMAND, cmd_stack, op_stack);
+      }
+    } else if (strlen(token) == 1 && token[0] == '|') {
+      handle_command(words, cmd_stack, word_number);
+      word_number = 0;
+      handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
+    }
+
+    free(buffer);
+  }
+
+  command_t cmd_rem = cmd_stack->peek();
+  command_t op_rem = op_stack->peek();
+  command_type cur;
+
+  while (cmd_rem != NULL && op_rem != NULL) {
+    cur = op_stack->pop()->type;
+    command_t cmd_a = cmd_stack->pop();
+    command_t cmd_b = cmd_stack->pop();
+    if (cmd_a != NULL && cmd_b != NULL) {
+      command_t combined = malloc(sizeof(command_t));
+      combined->u.command[0] = cmd_a;
+      combined->u.command[1] = cmd_b;
+      cmd_stack->push(combined);
     }
   }
-  int k;
-  for (k = size; k >= 0; k--) {
-    char* token = tokens[k];
-    int tsize = strlen(token);
-    int p;
-    for (p = 0; p < tsize; p++)
-    {
-      char c = token[p];
-      if (c == ';' || c == '\n')
-      {
-        cnode.command = SEQUENCE_COMMAND;
-        break;
-      }
-      if (c =='|')
-      {
-        if (p == tsize-1 || token[p+1] != '|')
-        {
-          cnode.command = PIPE_COMMAND;
-        }
-        else
-        {
-          cnode.command = OR_COMMAND;
-        }
-          break;
-      }
-      if (c == '&')
-      {
-        if (p == tsize-1 || token[p+1] != '&')
-        {
-          // Handle errors
-        }
-        else
-        {
-          cnode.command = AND_COMMAND;
-        }
-        break;
-      }
-    }
-  }
+
+  // we should be guaranteed that the last thing on the command stack
+  // is the root node of the tree...hopefully
+  cnode->command = cmd_stack->pop();
   return cnode;
 }
 
 // adds a new node to the stream
 void
-append_node (command_node node, command_stream_t stream)
+append_node (command_node *node, command_stream_t stream)
 {
   if (stream->head == NULL) {
-    *(stream->head) = node;
+    stream->head = node;
     stream->head->next = NULL;
     stream->iterator = NULL;
   } else if (stream->head->next == NULL){
-    *(stream->head)->next = node;
-    *(stream->iterator) = node;
+    stream->head->next = node;
+    stream->iterator = node;
     stream->iterator->next = NULL;
   } else {
-    *(stream->iterator)->next = node;
-    *(stream->iterator) = node;
+    stream->iterator->next = node;
+    stream->iterator = node;
   }
   stream->index++;
-}
-
-// safe append for the buffer, reallocs as necessary
-// adds a space before each operator for 420 offdarailz tokenization
-void
-buffer_append (char c, char *buffer, int *size, int *max)
-{
-  (*size)++;
-  if (*size >= *max) {
-    *max *= 2;
-    char *new_buf = malloc(sizeof(char) * (*max));
-    buffer = new_buf;
-  }
-
-  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
-    buffer[*size] = ' ';
-    (*size)++;
-  }
-
-  buffer[*size] = c;
 }
 
 command_stream_t
@@ -307,13 +340,13 @@ make_command_stream (int (*get_next_byte) (void *),
   char c;
   char last_char;
 
-  while (c = get_next_byte(get_next_byte_argument) != EOF) {
+  while ((c = get_next_byte(get_next_byte_argument)) != EOF) {
     if (c == '\n') {
       lines_read++;
       if (last_char == '\n') {
-        command_node new_node = process_expression(expression_buffer);
+        command_node *new_node = process_expression(expression_buffer);
         append_node(new_node, stream);
-        memset(&expression_buffer[0], 0, sizeof(expression_buffer));
+        clear_buffer(expression_buffer);
       } else {
         buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
       }
@@ -326,9 +359,11 @@ make_command_stream (int (*get_next_byte) (void *),
     last_char = c;
   }
 
-  command_node new_node; process_expression(expression_buffer);
+  command_node *new_node = process_expression(expression_buffer);
   append_node(new_node, stream);
-  memset(&expression_buffer[0], 0, sizeof(expression_buffer));
+  clear_buffer(expression_buffer);
+
+  free(expression_buffer);
 
   stream->iterator = stream->head;
   return stream;
