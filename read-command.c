@@ -52,6 +52,7 @@ struct stack
 };
 */
 
+// all stack functions working properly
 void
 push (stack *self, command_t command)
 {
