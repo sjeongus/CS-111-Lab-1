@@ -145,6 +145,7 @@ clear_buffer (char *buffer)
   memset(&buffer[0], 0, sizeof(buffer));
 }
 
+// Tested and is working properly
 bool
 is_greater_precedence (command_type a, command_type b)
 {
