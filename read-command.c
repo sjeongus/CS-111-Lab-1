@@ -163,18 +163,19 @@ is_greater_precedence (command_type a, command_type b)
 char**
 tokenize_expression (char* buffer, int *size)
 {
-  char* temp;
-  char** tokens = malloc(sizeof(char*));
-  temp = strtok(buffer, ' ');
+  char tokens[DEFAULT_BUFFER_SIZE][DEFAULT_BUFFER_SIZE];
+  char arr[DEFAULT_BUFFER_SIZE];
+  strcpy(arr, buffer);
+  char* temp = strtok(arr, " ");
   int i = 0;
-  int j = 1;
-  while(temp != NULL)
+  //int j = 1;
+  while(temp)
   {
-    tokens[i] = temp;
+    strcpy(tokens[i], temp);
     i++;
-    j++;
-    tokens = realloc(tokens, j*sizeof(char*));
-    strtok(NULL, ' ');
+    //j++;
+    //tokens = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
+    temp = strtok(NULL, " ");
   }
   *size = i;
   return tokens;

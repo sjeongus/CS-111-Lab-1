@@ -26,14 +26,19 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  char* arr = "a | b && c || ( d )";
-  char* temp = tokenize_expression(arr);
-  int i;
-  int len = strlen(temp);
-  for (i = 0; i < len; i++)
-  {
-    printf(temp[i]);
+  char arr[] = "a | b && c || d";
+  /*char s[256];
+  strcpy(s, "one two three");
+  char* token = strtok(s, " ");
+  while (token) {
+      //printf("token: %s\n", token);
+      token = strtok(NULL, " ");
   }
+  return 0;*/
+  int length = strlen(arr);
+  char** temp = tokenize_expression(arr, &length);
+  return 0;
+
   /*int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;
