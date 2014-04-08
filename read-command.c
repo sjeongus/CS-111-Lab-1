@@ -52,7 +52,7 @@ push (stack *self, command_t command)
 {
   if (self->size == self->max_size) {
     self->max_size *= 2;
-    command_t *new = malloc (self->max_size * sizeof (command_t));
+    command_t *new = malloc(self->max_size * sizeof (command_t));
     self->commands = new;
   }
 
@@ -85,7 +85,7 @@ init_stack (int max)
   stack *new = malloc (sizeof (stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc (max * sizeof (command_t));
+  new->commands = malloc(max * sizeof (command_t));
 }
 
 bool
@@ -206,10 +206,16 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 }
 
 void
-handle_command (char **words, stack *cmd_stack)
+handle_command (char **words, stack *cmd_stack, int num_words)
 {
   command_t new_command = malloc(sizeof(command_t));
-  new_command->u.word = words;
+  char **commands = malloc(sizeof(char*) * num_words);
+  int i;
+  for (i = 0; i < num_words; i++) {
+    strcpy(commands[i], words[i]);
+    free(words[i]);
+  }
+  new_command->u.word = commands;
   cmd_stack->push(new_command);
 }
 
@@ -257,16 +263,21 @@ process_expression (char *buffer)
       word_number++;
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
       if (token[0] == '&') {
-        handle_command(words, cmd_stack);
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
         handle_operator(AND_COMMAND, cmd_stack, op_stack);
       } else if (token[0] == '|') {
-        handle_command(words, cmd_stack);
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
         handle_operator(OR_COMMAND, cmd_stack, op_stack);
       }
     } else if (strlen(token) == 1 && token[0] == '|') {
-      handle_command(words, cmd_stack);
+      handle_command(words, cmd_stack, word_number);
+      word_number = 0;
       handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
     }
+
+    free(buffer);
   }
 
   command_t cmd_rem = cmd_stack->peek();
@@ -349,7 +360,9 @@ make_command_stream (int (*get_next_byte) (void *),
 
   command_node *new_node = process_expression(expression_buffer);
   append_node(new_node, stream);
-  memset(&expression_buffer[0], 0, sizeof(expression_buffer));
+  clear_buffer(expression_buffer);
+
+  free(expression_buffer);
 
   stream->iterator = stream->head;
   return stream;
