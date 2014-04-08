@@ -128,10 +128,13 @@ buffer_append (char c, char *buffer, int *size, int *max)
     buffer = checked_realloc(buffer, *max);
   }
 
-  if (is_operator(c) && !is_operator(buffer[(*size)-1])) {
+  if ((is_operator(c) && !is_operator(buffer[(*size)-1]))
+       || isalnum(c) && is_operator(buffer[(*size)-1])) {
     buffer[*size] = ' ';
     (*size)++;
   }
+
+  if (isalnum(c) && is_operator(buffer[(*size)-1])
 
   buffer[*size] = c;
 }
