@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "command.h"
-#include "read-command.c"
+#include "read-command.h"
 
 static char const *program_name;
 static char const *script_name;
@@ -27,7 +27,7 @@ int
 main (int argc, char **argv)
 {
   char* arr = "a | b && c || ( d )";
-  char* temp = tokenize_simple_command(arr);
+  char* temp = tokenize_expression(arr);
   int i;
   int len = strlen(temp);
   for (i = 0; i < len; i++)
