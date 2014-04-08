@@ -160,10 +160,11 @@ is_greater_precedence (command_type a, command_type b)
     return false;
 }
 
+// Tested this function and working properly
 char**
 tokenize_expression (char* buffer, int *size)
 {
-  char tokens[DEFAULT_BUFFER_SIZE][DEFAULT_BUFFER_SIZE];
+  char tokens[sizeof(char*) * (*size)][sizeof(char*) * DEFAULT_BUFFER_SIZE];
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
   char* temp = strtok(arr, " ");
@@ -174,7 +175,7 @@ tokenize_expression (char* buffer, int *size)
     strcpy(tokens[i], temp);
     i++;
     //j++;
-    //tokens = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
+    //tokens[] = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
     temp = strtok(NULL, " ");
   }
   *size = i;
