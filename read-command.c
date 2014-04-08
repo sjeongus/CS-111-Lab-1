@@ -374,6 +374,7 @@ make_command_stream (int (*get_next_byte) (void *),
     last_char = c;
   }
 
+  // now let's clean up the rest of it
   command_node *new_node = process_expression(expression_buffer);
   append_node(new_node, stream);
   clear_buffer(expression_buffer);
