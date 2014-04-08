@@ -29,7 +29,7 @@ main (int argc, char **argv)
   char* arr = "a | b && c || ( d )";
   char* temp = tokenize_simple_command(arr);
   int i;
-  int len = temp.strlen();
+  int len = strlen(temp);
   for (i = 0; i < len; i++)
   {
     printf(temp[i]);

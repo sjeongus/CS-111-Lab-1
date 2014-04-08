@@ -163,7 +163,7 @@ char**
 tokenize_expression (char* buffer, int *size)
 {
   char* temp;
-  char* tokens = checked_malloc(sizeof(char*));
+  char** tokens = malloc(sizeof(char*));
   temp = strtok(buffer, ' ');
   int i = 0;
   int j = 1;
@@ -172,10 +172,10 @@ tokenize_expression (char* buffer, int *size)
     tokens[i] = temp;
     i++;
     j++;
-    tokens = checked_realloc(tokens, j*sizeof(char*));
+    tokens = realloc(tokens, j*sizeof(char*));
     strtok(NULL, ' ');
   }
-  size = i;
+  *size = i;
   return tokens;
 }
 
@@ -296,16 +296,16 @@ void
 append_node (command_node *node, command_stream_t stream)
 {
   if (stream->head == NULL) {
-    stream->head = node;
+    *(stream->head) = node;
     stream->head->next = NULL;
     stream->iterator = NULL;
   } else if (stream->head->next == NULL){
-    stream->head->next = node;
-    stream->iterator = node;
+    *(stream->head)->next = node;
+    *(stream->iterator) = node;
     stream->iterator->next = NULL;
   } else {
-    stream->iterator->next = node;
-    stream->iterator = node;
+    *(stream->iterator)->next = node;
+    *(stream->iterator) = node;
   }
   stream->index++;
 }
