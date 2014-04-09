@@ -53,7 +53,7 @@ void clear_buffer (char *buffer);
 
 bool is_greater_precedence (command_type a, command_type b);
 
-char** tokenize_expression (char* buffer, int *size);
+void tokenize_expression (char** tokens, char* buffer, int *size);
 
 void handle_operator (command_type op, stack *cmd_stack, stack *op_stack);
 
