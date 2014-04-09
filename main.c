@@ -41,8 +41,7 @@ main (int argc, char **argv)
     buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
   }
 
-  char** toks;
-  tokenize_expression(&toks, buffer, &buffer_size);
+  char** toks = tokenize_expression(buffer, &buffer_size);
 
   printf("%s\n", narr);
   printf("%s\n", buffer);

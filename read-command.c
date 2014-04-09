@@ -164,11 +164,14 @@ is_greater_precedence (command_type a, command_type b)
 }
 
 // Tested this function and working properly
-void
-tokenize_expression (char** tokens, char* buffer, int *size)
+char**
+tokenize_expression (char* buffer, int *size)
 {
   int len = *size;
-  char read[15][DEFAULT_BUFFER_SIZE];
+  char** tokens = malloc(len * sizeof(char*));
+  int p;
+  for (p = 0; p < len; p++)
+    tokens[p] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
   char* temp = strtok(arr, " ");
@@ -176,14 +179,14 @@ tokenize_expression (char** tokens, char* buffer, int *size)
   //int j = 1;
   while(temp)
   {
-    strcpy(read[i], temp);
+    strcpy(tokens[i], temp);
     i++;
     //j++;
     //tokens[] = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
     temp = strtok(NULL, " ");
   }
-  tokens = &read;
   *size = i;
+  return tokens;
 }
 
 void
@@ -246,8 +249,7 @@ process_expression (char *buffer)
   char **words = malloc(sizeof(char*) * DEFAULT_WORDS);
 
   int size = 0;
-  char *tokens[DEFAULT_BUFFER_SIZE];
-  tokenize_expression(tokens, buffer, &size);
+  char** tokens = tokenize_expression(buffer, &size);
 
   command_node *cnode = malloc(sizeof(command_node));
 
