@@ -229,6 +229,7 @@ handle_command (char **words, stack *cmd_stack, int num_words)
   push(cmd_stack, new_command);
 }
 
+// Tested is working properly
 bool
 is_simple_command (char* token)
 {

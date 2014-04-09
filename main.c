@@ -40,14 +40,18 @@ main (int argc, char **argv)
   for (j = 0; j < strlen(narr); j++) {
     buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
   }
+  process_expression(narr);
+  return 0;
 
-  char** toks = tokenize_expression(buffer, &buffer_size);
+  /*char** toks = tokenize_expression(buffer, &buffer_size);
 
   printf("%s\n", narr);
   printf("%s\n", buffer);
   unsigned int k;
   for (k = 0; k < 7; k++)
     printf("%s\n", toks[k]);
+
+  return 0;*/
 
   /*int command_number = 1;
   bool print_tree = false;
