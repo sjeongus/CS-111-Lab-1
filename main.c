@@ -28,19 +28,11 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  char arr[] = "a|b||c&&d";
-  char narr[500];
-  strcpy(narr, arr);
-
-  int buffer_max = 500;
-  int buffer_size = 0;
-  char *buffer = malloc(sizeof(char) * buffer_max);
-
-  unsigned int j;
-  for (j = 0; j < strlen(narr); j++) {
-    buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
-  }
-  process_expression(narr);
+  fprintf(stderr, "hello\n");
+  stack *cmd_stack = init_stack(5);
+  stack *op_stack = init_stack(5);
+  handle_operator(SEQUENCE_COMMAND, cmd_stack, op_stack);
+  fprintf(stderr, "%d\n", peek(op_stack));
   return 0;
 
   /*char** toks = tokenize_expression(buffer, &buffer_size);
