@@ -91,7 +91,7 @@ init_stack (int max)
   stack *new = malloc(sizeof(stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc(max * sizeof(command_t));
+  new->commands = malloc(max * sizeof(struct command));
   return new;
 }
 
@@ -139,8 +139,9 @@ clear_buffer (char *buffer)
 }
 
 // Tested and is working properly
+// tests if b is greater than a, ignore the fact that they're backwards
 bool
-is_greater_precedence (command_type a, command_type b)
+is_greater_precedence (command_type b, command_type a)
 {
   //determine which has greater precedence, true if a >
   if (a == SEQUENCE_COMMAND)
@@ -192,24 +193,31 @@ tokenize_expression (char* buffer, int *size)
 void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
-  if (is_greater_precedence(op, peek(op_stack)->type) || op_stack->size == 0) {
-    command_t new_op = malloc(sizeof(command_t));
+  if (op_stack->size == 0 || is_greater_precedence(op, peek(op_stack)->type)) {
+    command_t new_op = malloc(sizeof(struct command));
     new_op->type = op;
     push(op_stack, new_op);
   } else {
     command_type cur = op;
-    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, peek(op_stack)->type)) {
+    while(cur != SUBSHELL_COMMAND && op_stack->size > 0 && !is_greater_precedence(op, peek(op_stack)->type)) {
       cur = pop(op_stack)->type;
-      command_t cmd_a = pop(cmd_stack);
-      command_t cmd_b = pop(cmd_stack);
+      command_t cmd_a = peek(cmd_stack);
+      command_t cmd_b = peek(cmd_stack);
       if (cmd_a != NULL && cmd_b != NULL) {
-        command_t combined = malloc(sizeof(command_t));
+        pop(cmd_stack);
+        pop(cmd_stack);
+        fprintf(stderr, "%s\n", cmd_a->u.word[0]);
+        fprintf(stderr, "%s\n", cmd_b->u.word[0]);
+        command_t combined = malloc(sizeof(struct command));
+        combined->type = cur;
         combined->u.command[0] = cmd_a;
         combined->u.command[1] = cmd_b;
         push(cmd_stack, combined);
+      } else {
+        // throw error, why the fuck don't you have two commands
       }
     }
-    command_t new_op = malloc(sizeof(command_t));
+    command_t new_op = malloc(sizeof(struct command));
     new_op->type = op;
     push(op_stack, new_op);
   }
@@ -218,7 +226,7 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
-  command_t new_command = malloc(sizeof(command_t));
+  command_t new_command = malloc(sizeof(struct command));
   char **commands = malloc(sizeof(char*) * num_words);
   int i;
   for (i = 0; i < num_words; i++) {
@@ -300,7 +308,7 @@ process_expression (char *buffer)
     command_t cmd_a = pop(cmd_stack);
     command_t cmd_b = pop(cmd_stack);
     if (cmd_a != NULL && cmd_b != NULL) {
-      command_t combined = malloc(sizeof(command_t));
+      command_t combined = malloc(sizeof(struct command));
       combined->u.command[0] = cmd_a;
       combined->u.command[1] = cmd_b;
       push(cmd_stack, combined);
