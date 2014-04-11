@@ -95,6 +95,13 @@ init_stack (int max)
   return new;
 }
 
+command_t
+new_command ()
+{
+  command_t new_cmd = malloc(sizeof(struct command));
+  return new_cmd;
+}
+
 // Tested and works!
 bool
 is_operator (char c)
@@ -201,13 +208,9 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
     command_type cur = op;
     while(cur != SUBSHELL_COMMAND && op_stack->size > 0 && !is_greater_precedence(op, peek(op_stack)->type)) {
       cur = pop(op_stack)->type;
-      command_t cmd_a = peek(cmd_stack);
-      command_t cmd_b = peek(cmd_stack);
+      command_t cmd_a = pop(cmd_stack);
+      command_t cmd_b = pop(cmd_stack);
       if (cmd_a != NULL && cmd_b != NULL) {
-        pop(cmd_stack);
-        pop(cmd_stack);
-        fprintf(stderr, "%s\n", cmd_a->u.word[0]);
-        fprintf(stderr, "%s\n", cmd_b->u.word[0]);
         command_t combined = malloc(sizeof(struct command));
         combined->type = cur;
         combined->u.command[0] = cmd_a;
@@ -303,7 +306,7 @@ process_expression (char *buffer)
   command_t op_rem = op_stack->peek();
   command_type cur;
 
-  while (cmd_rem != NULL && op_rem != NULL) {
+  while (op_stack->size > 0 && cmd_stack->size > 1) {
     cur = pop(op_stack)->type;
     command_t cmd_a = pop(cmd_stack);
     command_t cmd_b = pop(cmd_stack);
@@ -313,6 +316,8 @@ process_expression (char *buffer)
       combined->u.command[1] = cmd_b;
       push(cmd_stack, combined);
     }
+    cmd_rem = cmd_stack->peek();
+    op_rem = op_stack->peek();
   }
 
   // we should be guaranteed that the last thing on the command stack

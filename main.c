@@ -30,11 +30,13 @@ main (int argc, char **argv)
 {
   stack *cmd_stack = init_stack(5);
   stack *op_stack = init_stack(5);
-  command_t cmd1 = malloc(sizeof(struct command));
-  command_t cmd2 = malloc(sizeof(struct command));
-  command_t op1 = malloc(sizeof(struct command));
+  command_t cmd1 = new_command();
+  command_t cmd2 = new_command();
+  command_t op1 = new_command();
   cmd1->type = SIMPLE_COMMAND;
   cmd2->type = SIMPLE_COMMAND;
+  cmd1->u.word = malloc(sizeof(char*) * 5);
+  cmd2->u.word = malloc(sizeof(char*) * 5);
   char* yolo = "yolo";
   char* swag = "swag";
   cmd1->u.word = malloc(sizeof(char*));
@@ -43,14 +45,12 @@ main (int argc, char **argv)
   cmd2->u.word[0] = malloc(strlen(swag)+1);
   strcpy(cmd1->u.word[0], yolo);
   strcpy(cmd2->u.word[0], swag);
-  fprintf(stderr, "%s\n", cmd1->u.word[0]);
   op1->type = PIPE_COMMAND;
   push(cmd_stack, cmd1);
+  fprintf(stderr, "%s\n", peek(cmd_stack)->u.word[0]);
   push(cmd_stack, cmd2);
   push(op_stack, op1);
   handle_operator(AND_COMMAND, cmd_stack, op_stack);
-  fprintf(stderr, "%s\n", peek(cmd_stack)->u.command[0]->u.word[0]);
-  fprintf(stderr, "%s\n", peek(cmd_stack)->u.command[1]->u.word[0]);
 
   return 0;
 

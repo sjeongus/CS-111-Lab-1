@@ -45,6 +45,8 @@ command_t peek (stack *self);
 
 stack* init_stack (int max);
 
+command_t new_command ();
+
 bool is_operator (char c);
 
 void buffer_append (char c, char *buffer, int *size, int *max);
