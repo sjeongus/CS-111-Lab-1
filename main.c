@@ -28,30 +28,21 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  stack *cmd_stack = init_stack(5);
-  stack *op_stack = init_stack(5);
-  command_t cmd1 = new_command();
-  command_t cmd2 = new_command();
-  command_t op1 = new_command();
-  cmd1->type = SIMPLE_COMMAND;
-  cmd2->type = SIMPLE_COMMAND;
-  cmd1->u.word = malloc(sizeof(char*) * 5);
-  cmd2->u.word = malloc(sizeof(char*) * 5);
-  char* yolo = "yolo";
-  char* swag = "swag";
-  cmd1->u.word = malloc(sizeof(char*));
-  cmd2->u.word = malloc(sizeof(char*));
-  cmd1->u.word[0] = malloc(strlen(yolo)+1);
-  cmd2->u.word[0] = malloc(strlen(swag)+1);
-  strcpy(cmd1->u.word[0], yolo);
-  strcpy(cmd2->u.word[0], swag);
-  op1->type = PIPE_COMMAND;
-  push(cmd_stack, cmd1);
-  fprintf(stderr, "%s\n", peek(cmd_stack)->u.word[0]);
-  push(cmd_stack, cmd2);
-  push(op_stack, op1);
-  handle_operator(AND_COMMAND, cmd_stack, op_stack);
+  char arr[] = "a|b||c&&d";
+  char narr[500];
+  strcpy(narr, arr);
 
+  int buffer_max = 500;
+  int buffer_size = 0;
+  char *buffer = malloc(sizeof(char) * buffer_max);
+
+  unsigned int j;
+  for (j = 0; j < strlen(narr); j++) {
+    buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
+  }
+  command_node *node = process_expression(narr);
+  command_t cmd = node->command;
+  fprintf(stderr, "%d\n", cmd->type);
   return 0;
 
   /*char** toks = tokenize_expression(buffer, &buffer_size);

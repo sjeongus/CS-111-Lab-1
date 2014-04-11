@@ -169,17 +169,15 @@ is_greater_precedence (command_type b, command_type a)
   }
   if (a == PIPE_COMMAND)
     return false;
+  return false;
 }
 
 // Tested this function and working properly
 char**
 tokenize_expression (char* buffer, int *size)
 {
-  int len = *size;
+  int len = DEFAULT_WORDS;
   char** tokens = malloc(len * sizeof(char*));
-  int p;
-  for (p = 0; p < len; p++)
-    tokens[p] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
   char* temp = strtok(arr, " ");
@@ -187,8 +185,13 @@ tokenize_expression (char* buffer, int *size)
   //int j = 1;
   while(temp)
   {
+    tokens[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(tokens[i], temp);
     i++;
+    if (i == len) {
+      len *= 2;
+      tokens = realloc(tokens, len * sizeof(char*));
+    }
     //j++;
     //tokens[] = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
     temp = strtok(NULL, " ");
@@ -264,6 +267,7 @@ process_expression (char *buffer)
   char** tokens = tokenize_expression(buffer, &size);
 
   command_node *cnode = malloc(sizeof(command_node));
+  cnode->command = malloc(sizeof(struct command));
 
   int i;
   int word_number = 0;
@@ -275,14 +279,15 @@ process_expression (char *buffer)
     if (is_simple_command(token)) {
       int buffer_max = DEFAULT_BUFFER_SIZE;
       int buffer_size = 0;
-      char *buffer = malloc(sizeof(char) * buffer_max);
+      char *expr_buffer = malloc(sizeof(char) * buffer_max);
 
       unsigned int j;
       for (j = 0; j < strlen(token); j++) {
-        buffer_append(token[j], buffer, &buffer_size, &buffer_max);
+        buffer_append(token[j], expr_buffer, &buffer_size, &buffer_max);
       }
-      words[word_number] = buffer;
+      words[word_number] = expr_buffer;
       word_number++;
+      free(expr_buffer);
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
       if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
@@ -298,12 +303,8 @@ process_expression (char *buffer)
       word_number = 0;
       handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
     }
-
-    free(buffer);
   }
 
-  command_t cmd_rem = cmd_stack->peek();
-  command_t op_rem = op_stack->peek();
   command_type cur;
 
   while (op_stack->size > 0 && cmd_stack->size > 1) {
@@ -312,12 +313,11 @@ process_expression (char *buffer)
     command_t cmd_b = pop(cmd_stack);
     if (cmd_a != NULL && cmd_b != NULL) {
       command_t combined = malloc(sizeof(struct command));
+      combined->type = cur;
       combined->u.command[0] = cmd_a;
       combined->u.command[1] = cmd_b;
       push(cmd_stack, combined);
     }
-    cmd_rem = cmd_stack->peek();
-    op_rem = op_stack->peek();
   }
 
   // we should be guaranteed that the last thing on the command stack
