@@ -28,7 +28,7 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  char arr[] = "a|b||c&&d";
+  /*char arr[] = "a|b||c&&d";
   char narr[500];
   strcpy(narr, arr);
 
@@ -40,12 +40,12 @@ main (int argc, char **argv)
   for (j = 0; j < strlen(narr); j++) {
     buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
   }
-  command_node *node = process_expression(narr);
+  command_node *node = process_expression(buffer);
   command_t cmd = node->command;
   fprintf(stderr, "%d\n", cmd->type);
   return 0;
 
-  /*char** toks = tokenize_expression(buffer, &buffer_size);
+  char** toks = tokenize_expression(buffer, &buffer_size);
 
   printf("%s\n", narr);
   printf("%s\n", buffer);
@@ -55,7 +55,7 @@ main (int argc, char **argv)
 
   return 0;*/
 
-  /*int command_number = 1;
+  int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;
   program_name = argv[0];
@@ -97,5 +97,5 @@ main (int argc, char **argv)
 	}
     }
 
-  return print_tree || !last_command ? 0 : command_status (last_command);*/
+  return print_tree || !last_command ? 0 : command_status (last_command);
 }

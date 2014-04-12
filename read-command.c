@@ -176,7 +176,7 @@ is_greater_precedence (command_type b, command_type a)
 char**
 tokenize_expression (char* buffer, int *size)
 {
-  int len = DEFAULT_WORDS;
+  int len = strlen(buffer);
   char** tokens = malloc(len * sizeof(char*));
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
@@ -236,6 +236,7 @@ handle_command (char **words, stack *cmd_stack, int num_words)
   char **commands = malloc(sizeof(char*) * num_words);
   int i;
   for (i = 0; i < num_words; i++) {
+    commands[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(commands[i], words[i]);
     free(words[i]);
   }
@@ -400,12 +401,20 @@ make_command_stream (int (*get_next_byte) (void *),
 command_t
 read_command_stream (command_stream_t s)
 {
-  if (s->index == s->size) {
+  /*if (s->index == s->size) {
     s->index = 0;
     return NULL;
-  }
+  }s
 
   s->index++;
   s->iterator = s->iterator->next;
-  return s->iterator->command;
+  return s->iterator->command;*/
+  if (s->iterator != NULL)
+  {
+    command_t result = s->iterator->command;
+    s->iterator = s->iterator->next;
+    return result;
+  }
+  else
+    return NULL;
 }
