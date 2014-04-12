@@ -91,8 +91,15 @@ init_stack (int max)
   stack *new = malloc(sizeof(stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc(max * sizeof(command_t));
+  new->commands = malloc(max * sizeof(struct command));
   return new;
+}
+
+command_t
+new_command ()
+{
+  command_t new_cmd = malloc(sizeof(struct command));
+  return new_cmd;
 }
 
 // Tested and works!
@@ -139,8 +146,9 @@ clear_buffer (char *buffer)
 }
 
 // Tested and is working properly
+// tests if b is greater than a, ignore the fact that they're backwards
 bool
-is_greater_precedence (command_type a, command_type b)
+is_greater_precedence (command_type b, command_type a)
 {
   //determine which has greater precedence, true if a >
   if (a == SEQUENCE_COMMAND)
@@ -161,17 +169,15 @@ is_greater_precedence (command_type a, command_type b)
   }
   if (a == PIPE_COMMAND)
     return false;
+  return false;
 }
 
 // Tested this function and working properly
 char**
 tokenize_expression (char* buffer, int *size)
 {
-  int len = *size;
+  int len = DEFAULT_WORDS;
   char** tokens = malloc(len * sizeof(char*));
-  int p;
-  for (p = 0; p < len; p++)
-    tokens[p] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
   char* temp = strtok(arr, " ");
@@ -179,8 +185,13 @@ tokenize_expression (char* buffer, int *size)
   //int j = 1;
   while(temp)
   {
+    tokens[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(tokens[i], temp);
     i++;
+    if (i == len) {
+      len *= 2;
+      tokens = realloc(tokens, len * sizeof(char*));
+    }
     //j++;
     //tokens[] = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
     temp = strtok(NULL, " ");
@@ -192,24 +203,27 @@ tokenize_expression (char* buffer, int *size)
 void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
-  if (is_greater_precedence(op, peek(op_stack)->type) || op_stack->size == 0) {
-    command_t new_op = malloc(sizeof(command_t));
+  if (op_stack->size == 0 || is_greater_precedence(op, peek(op_stack)->type)) {
+    command_t new_op = malloc(sizeof(struct command));
     new_op->type = op;
     push(op_stack, new_op);
   } else {
     command_type cur = op;
-    while(cur != SUBSHELL_COMMAND && !is_greater_precedence(op, peek(op_stack)->type)) {
+    while(cur != SUBSHELL_COMMAND && op_stack->size > 0 && !is_greater_precedence(op, peek(op_stack)->type)) {
       cur = pop(op_stack)->type;
       command_t cmd_a = pop(cmd_stack);
       command_t cmd_b = pop(cmd_stack);
       if (cmd_a != NULL && cmd_b != NULL) {
-        command_t combined = malloc(sizeof(command_t));
+        command_t combined = malloc(sizeof(struct command));
+        combined->type = cur;
         combined->u.command[0] = cmd_a;
         combined->u.command[1] = cmd_b;
         push(cmd_stack, combined);
+      } else {
+        // throw error, why the fuck don't you have two commands
       }
     }
-    command_t new_op = malloc(sizeof(command_t));
+    command_t new_op = malloc(sizeof(struct command));
     new_op->type = op;
     push(op_stack, new_op);
   }
@@ -218,7 +232,7 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
-  command_t new_command = malloc(sizeof(command_t));
+  command_t new_command = malloc(sizeof(struct command));
   char **commands = malloc(sizeof(char*) * num_words);
   int i;
   for (i = 0; i < num_words; i++) {
@@ -253,6 +267,7 @@ process_expression (char *buffer)
   char** tokens = tokenize_expression(buffer, &size);
 
   command_node *cnode = malloc(sizeof(command_node));
+  cnode->command = malloc(sizeof(struct command));
 
   int i;
   int word_number = 0;
@@ -264,14 +279,15 @@ process_expression (char *buffer)
     if (is_simple_command(token)) {
       int buffer_max = DEFAULT_BUFFER_SIZE;
       int buffer_size = 0;
-      char *buffer = malloc(sizeof(char) * buffer_max);
+      char *expr_buffer = malloc(sizeof(char) * buffer_max);
 
       unsigned int j;
       for (j = 0; j < strlen(token); j++) {
-        buffer_append(token[j], buffer, &buffer_size, &buffer_max);
+        buffer_append(token[j], expr_buffer, &buffer_size, &buffer_max);
       }
-      words[word_number] = buffer;
+      words[word_number] = expr_buffer;
       word_number++;
+      free(expr_buffer);
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
       if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
@@ -287,20 +303,17 @@ process_expression (char *buffer)
       word_number = 0;
       handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
     }
-
-    free(buffer);
   }
 
-  command_t cmd_rem = cmd_stack->peek();
-  command_t op_rem = op_stack->peek();
   command_type cur;
 
-  while (cmd_rem != NULL && op_rem != NULL) {
+  while (op_stack->size > 0 && cmd_stack->size > 1) {
     cur = pop(op_stack)->type;
     command_t cmd_a = pop(cmd_stack);
     command_t cmd_b = pop(cmd_stack);
     if (cmd_a != NULL && cmd_b != NULL) {
-      command_t combined = malloc(sizeof(command_t));
+      command_t combined = malloc(sizeof(struct command));
+      combined->type = cur;
       combined->u.command[0] = cmd_a;
       combined->u.command[1] = cmd_b;
       push(cmd_stack, combined);
