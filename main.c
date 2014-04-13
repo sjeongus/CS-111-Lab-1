@@ -43,7 +43,11 @@ main (int argc, char **argv)
   command_node *node = process_expression(buffer);
   command_t cmd = node->command;
   fprintf(stderr, "%d\n", cmd->type);
-  return 0;
+  char *word1 = cmd->u.command[0]->u.word;
+  char *word2 = cmd->u.command[1]->u.word;
+  //char* word1 = cmd->u.word;
+  fprintf(stderr, "%s\n", word1);
+  fprintf(stderr, "%s\n", word2);
 
   char** toks = tokenize_expression(buffer, &buffer_size);
 

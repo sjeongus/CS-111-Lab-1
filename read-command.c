@@ -96,9 +96,11 @@ init_stack (int max)
 }
 
 command_t
-new_command ()
+new_command (void)
 {
   command_t new_cmd = malloc(sizeof(struct command));
+  new_cmd->input = NULL;
+  new_cmd->output = NULL;
   return new_cmd;
 }
 
@@ -204,7 +206,7 @@ void
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
   if (op_stack->size == 0 || is_greater_precedence(op, peek(op_stack)->type)) {
-    command_t new_op = malloc(sizeof(struct command));
+    command_t new_op = new_command();
     new_op->type = op;
     push(op_stack, new_op);
   } else {
@@ -214,16 +216,16 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
       command_t cmd_a = pop(cmd_stack);
       command_t cmd_b = pop(cmd_stack);
       if (cmd_a != NULL && cmd_b != NULL) {
-        command_t combined = malloc(sizeof(struct command));
+        command_t combined = new_command();
         combined->type = cur;
-        combined->u.command[0] = cmd_a;
-        combined->u.command[1] = cmd_b;
+        combined->u.command[0] = cmd_b;
+        combined->u.command[1] = cmd_a;
         push(cmd_stack, combined);
       } else {
         // throw error, why the fuck don't you have two commands
       }
     }
-    command_t new_op = malloc(sizeof(struct command));
+    command_t new_op = new_command();
     new_op->type = op;
     push(op_stack, new_op);
   }
@@ -232,16 +234,19 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
-  command_t new_command = malloc(sizeof(struct command));
-  char **commands = malloc(sizeof(char*) * num_words);
+  command_t new_comm = new_command();
+  char **commands = malloc(sizeof(char*) * num_words + 1);
   int i;
   for (i = 0; i < num_words; i++) {
     commands[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(commands[i], words[i]);
+    //fprintf(stderr, "%s\n", commands[i]);
     free(words[i]);
   }
-  new_command->u.word = commands;
-  push(cmd_stack, new_command);
+  commands[i] = 0;
+  new_comm->u.word = commands;
+  new_comm->type = SIMPLE_COMMAND;
+  push(cmd_stack, new_comm);
 }
 
 // Tested is working properly
@@ -250,7 +255,9 @@ is_simple_command (char* token)
 {
   unsigned int i;
   for (i = 0; i < strlen(token); i++) {
-    if (!isalnum(token[i])) return false;
+    //if (!isalnum(token[i])) return false;
+    char c = token[i];
+    if (c == '&' || c == '|') return false;
   }
   return true;
 }
@@ -280,15 +287,16 @@ process_expression (char *buffer)
     if (is_simple_command(token)) {
       int buffer_max = DEFAULT_BUFFER_SIZE;
       int buffer_size = 0;
-      char *expr_buffer = malloc(sizeof(char) * buffer_max);
+      //char *expr_buffer = malloc(sizeof(char) * buffer_max);
 
-      unsigned int j;
+      /*unsigned int j;
       for (j = 0; j < strlen(token); j++) {
         buffer_append(token[j], expr_buffer, &buffer_size, &buffer_max);
-      }
-      words[word_number] = expr_buffer;
+      }*/
+      words[word_number] = malloc(sizeof(char) * buffer_max);
+      words[word_number] = token;
       word_number++;
-      free(expr_buffer);
+      //free(expr_buffer);
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
       if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
@@ -305,6 +313,8 @@ process_expression (char *buffer)
       handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
     }
   }
+  if (word_number > 0)
+    handle_command(words, cmd_stack, word_number);
 
   command_type cur;
 
@@ -313,10 +323,10 @@ process_expression (char *buffer)
     command_t cmd_a = pop(cmd_stack);
     command_t cmd_b = pop(cmd_stack);
     if (cmd_a != NULL && cmd_b != NULL) {
-      command_t combined = malloc(sizeof(struct command));
+      command_t combined = new_command();
       combined->type = cur;
-      combined->u.command[0] = cmd_a;
-      combined->u.command[1] = cmd_b;
+      combined->u.command[0] = cmd_b;
+      combined->u.command[1] = cmd_a;
       push(cmd_stack, combined);
     }
   }
@@ -378,11 +388,13 @@ make_command_stream (int (*get_next_byte) (void *),
       } else {
         buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
       }
-    } else if (c == ';' || c == '|' || c == '&' || isalnum(c)) {
+    /*} else if (c == ';' || c == '|' || c == '&' || isalnum(c) || c == ' ' || c == '/'
+        || c == '>' || c == '<' || c == '!') {
       // replace this with a validation function eventually
-      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
+      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);*/
     } else {
       // throw error because invalid character
+      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
     }
     last_char = c;
   }
