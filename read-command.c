@@ -88,17 +88,17 @@ peek (stack *self)
 stack*
 init_stack (int max)
 {
-  stack *new = malloc(sizeof(stack));
+  stack *new = checked_malloc(sizeof(stack));
   new->size = 0;
   new->max_size = max;
-  new->commands = malloc(max * sizeof(struct command));
+  new->commands = checked_malloc(max * sizeof(struct command));
   return new;
 }
 
 command_t
 new_command (void)
 {
-  command_t new_cmd = malloc(sizeof(struct command));
+  command_t new_cmd = checked_malloc(sizeof(struct command));
   new_cmd->input = NULL;
   new_cmd->output = NULL;
   return new_cmd;
@@ -179,7 +179,7 @@ char**
 tokenize_expression (char* buffer, int *size)
 {
   int len = strlen(buffer);
-  char** tokens = malloc(len * sizeof(char*));
+  char** tokens = checked_malloc(len * sizeof(char*));
   char arr[DEFAULT_BUFFER_SIZE];
   strcpy(arr, buffer);
   char* temp = strtok(arr, " ");
@@ -187,12 +187,12 @@ tokenize_expression (char* buffer, int *size)
   //int j = 1;
   while(temp)
   {
-    tokens[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
+    tokens[i] = checked_malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(tokens[i], temp);
     i++;
     if (i == len) {
       len *= 2;
-      tokens = realloc(tokens, len * sizeof(char*));
+      tokens = checked_realloc(tokens, len * sizeof(char*));
     }
     //j++;
     //tokens[] = realloc(tokens, j*sizeof(char*) * DEFAULT_BUFFER_SIZE);
@@ -235,10 +235,10 @@ void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
   command_t new_comm = new_command();
-  char **commands = malloc(sizeof(char*) * num_words + 1);
+  char **commands = checked_malloc(sizeof(char*) * num_words + 1);
   int i;
   for (i = 0; i < num_words; i++) {
-    commands[i] = malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
+    commands[i] = checked_malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(commands[i], words[i]);
     //fprintf(stderr, "%s\n", commands[i]);
     free(words[i]);
@@ -269,13 +269,13 @@ process_expression (char *buffer)
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
 
-  char **words = malloc(sizeof(char*) * DEFAULT_WORDS);
+  char **words = checked_malloc(sizeof(char*) * DEFAULT_WORDS);
 
   int size = 0;
   char** tokens = tokenize_expression(buffer, &size);
 
-  command_node *cnode = malloc(sizeof(command_node));
-  cnode->command = malloc(sizeof(struct command));
+  command_node *cnode = checked_malloc(sizeof(command_node));
+  cnode->command = checked_malloc(sizeof(struct command));
 
   int i;
   int word_number = 0;
@@ -293,7 +293,7 @@ process_expression (char *buffer)
       for (j = 0; j < strlen(token); j++) {
         buffer_append(token[j], expr_buffer, &buffer_size, &buffer_max);
       }*/
-      words[word_number] = malloc(sizeof(char) * buffer_max);
+      words[word_number] = checked_malloc(sizeof(char) * buffer_max);
       words[word_number] = token;
       word_number++;
       //free(expr_buffer);
@@ -364,14 +364,14 @@ command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
 {
-  command_stream_t stream = malloc(sizeof(command_stream));
+  command_stream_t stream = checked_malloc(sizeof(command_stream));
   stream->index = 0;
   stream->size = 0;
   stream->head = NULL;
   stream->iterator = NULL;
 
   int lines_read = 0;
-  char *expression_buffer = malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  char *expression_buffer = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
   int buffer_size = 0;
   int buffer_max = DEFAULT_BUFFER_SIZE;
 
