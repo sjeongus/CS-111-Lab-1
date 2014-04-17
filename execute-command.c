@@ -53,6 +53,58 @@ void execute_switch(command_t c)
   }
 }
 
+void executingSimple(command_t c)
+{
+  int status;
+  pid_t pid = fork();
+  if (pid > 0)
+  {
+    // Wait for child, then store status
+    waitpid(pid, &status, 0);
+    c->status = status;
+  }
+  else if (pid == 0)
+  {
+    
+  }
+  else
+    error(1, 0, "Could not fork");
+}
+
+void executingSubshell(command_t c)
+{
+
+}
+
+void executingAnd(command_t c)
+{
+  execute_switch(c->u.command[0]);
+  if (c->u.command[0]->status == 0)
+  {
+    execute_switch(c->u.command[1]);
+    c->status = c->u.command[1]->status;
+  }
+  else
+    c->status = c->u.command[0]->status;
+}
+
+void executingOr(command_t c)
+{
+  execute_switch(c->u.command[0]);
+  if (c->u.command[0]->status != 0)
+  {
+    execute_generic(c->u.command[1]);
+    c->status = c->u.command[1]->status;
+  }
+  else
+    c->status = c->u.command[0]->status;
+}
+
+void executingSequence(command_t c)
+{
+
+}
+
 void executingPipe(command_t c)
 {
   pid_t returnedPid;
