@@ -67,7 +67,32 @@ void executingSimple(command_t c)
   }
   else if (pid == 0)
   {
-    
+    if (c->input != NULL)
+    {
+      int fd_in = open(c->input, O_RDWR);
+      if (fd_in < 0)
+        error(1, 0, "Couldn't read input file: %s", c->input);
+      if (dup2(fd_in, 0) < 0)
+        error(1, 0, "Error with dup2 for input file: %s", c->input);
+      if (close(fd_in) < 0)
+        error(1, 0, "Couldn't close input file: %s", c->input);
+    }
+    if (c->output != NULL)
+    {
+      int fd_out = open(c->output, O_CREAT | O_WRONLY | O_TRUNC,
+        S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+      if (fd_out < 0)
+        error(1, 0, "Couldn't read output file: %s", c->output);
+      if (dup2(fd_out, 1) < 0)
+        error(1, 0, "Error with dup2 for output file: %s", c->output);
+      if (close(fd_out) < 0)
+        error(1, 0, "Couldn't close output file: %s", c->output);
+    }
+    if (c->u.word[0][0] == ':')
+      _exit(0);
+    // Execute simple command
+    execvp(c->u.word[0], c->u.word);
+    error(1, 0, "Invalid simple command");
   }
   else
     error(1, 0, "Could not fork");
