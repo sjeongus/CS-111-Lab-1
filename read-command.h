@@ -57,13 +57,15 @@ bool is_greater_precedence (command_type a, command_type b);
 
 char** tokenize_expression (char* buffer, int *size);
 
-void handle_operator (command_type op, stack *cmd_stack, stack *op_stack);
+int handle_operator (command_type op, stack *cmd_stack, stack *op_stack);
 
 void handle_command (char **words, stack *cmd_stack, int num_words);
 
-command_node* process_expression (char *buffer);
+command_node* process_expression (char *buffer, int line_number);
 
 void append_node (command_node *node, command_stream_t stream);
+
+void print_error (int line_number, char *desc);
 
 command_stream_t make_command_stream (int (*get_next_byte) (void *),
          void *get_next_byte_argument);

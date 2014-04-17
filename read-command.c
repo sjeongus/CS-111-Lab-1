@@ -259,7 +259,7 @@ is_simple_command (char* token)
   for (i = 0; i < strlen(token); i++) {
     //if (!isalnum(token[i])) return false;
     char c = token[i];
-    if (c == '&' || c == '|') return false;
+    if (is_operator(c)) return false;
   }
   return true;
 }
@@ -318,7 +318,7 @@ process_expression (char *buffer, int line_number)
       word_number = 0;
        if (handle_operator(PIPE_COMMAND, cmd_stack, op_stack) == -1)
          print_error(line_number, buffer);
-    } 
+    }
   }
   if (word_number > 0)
     handle_command(words, cmd_stack, word_number);
@@ -415,7 +415,7 @@ make_command_stream (int (*get_next_byte) (void *),
   }
 
   // now let's clean up the rest of it
-  command_node *new_node = process_expression(expression_buffer, lines_rad);
+  command_node *new_node = process_expression(expression_buffer, lines_read);
   append_node(new_node, stream);
   clear_buffer(expression_buffer);
 
