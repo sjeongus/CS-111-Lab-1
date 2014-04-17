@@ -300,7 +300,9 @@ process_expression (char *buffer, int line_number)
       word_number++;
       //free(expr_buffer);
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
-      if (token[0] == '&') {
+      if (is_operator(token[0]) && token[1] == token[2]) {
+        print_error(line_number, buffer);
+      } else if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
         if (handle_operator(AND_COMMAND, cmd_stack, op_stack) == -1)
