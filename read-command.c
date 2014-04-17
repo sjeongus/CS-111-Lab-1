@@ -202,7 +202,7 @@ tokenize_expression (char* buffer, int *size)
   return tokens;
 }
 
-void
+int
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
   if (op_stack->size == 0 || is_greater_precedence(op, peek(op_stack)->type)) {
@@ -222,13 +222,15 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
         combined->u.command[1] = cmd_a;
         push(cmd_stack, combined);
       } else {
-        // throw error, why the fuck don't you have two commands
+        return -1; // it's an error
       }
     }
     command_t new_op = new_command();
     new_op->type = op;
     push(op_stack, new_op);
   }
+
+  return 1; // success
 }
 
 void
@@ -264,7 +266,7 @@ is_simple_command (char* token)
 
 // builds the tree via the two stacks method
 command_node*
-process_expression (char *buffer)
+process_expression (char *buffer, int line_number)
 {
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
@@ -301,17 +303,22 @@ process_expression (char *buffer)
       if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
-        handle_operator(AND_COMMAND, cmd_stack, op_stack);
+        if (handle_operator(AND_COMMAND, cmd_stack, op_stack) == -1)
+          print_error(line_number, buffer);
       } else if (token[0] == '|') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
-        handle_operator(OR_COMMAND, cmd_stack, op_stack);
+        if (handle_operator(OR_COMMAND, cmd_stack, op_stack) == -1)
+          print_error(line_number, buffer);
+      } else if (is_operator(token[0])) {
+        print_error(line_number, buffer);
       }
     } else if (strlen(token) == 1 && token[0] == '|') {
       handle_command(words, cmd_stack, word_number);
       word_number = 0;
-      handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
-    }
+       if (handle_operator(PIPE_COMMAND, cmd_stack, op_stack) == -1)
+         print_error(line_number, buffer);
+    } 
   }
   if (word_number > 0)
     handle_command(words, cmd_stack, word_number);
@@ -360,6 +367,14 @@ append_node (command_node *node, command_stream_t stream)
   stream->index++;
 }
 
+void
+print_error (int line_number, char *desc)
+{
+  fprintf(stderr, "Error on line %d: %s\n", line_number, desc);
+  free(desc);
+  exit(EXIT_FAILURE);
+}
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
@@ -382,16 +397,16 @@ make_command_stream (int (*get_next_byte) (void *),
     if (c == '\n') {
       lines_read++;
       if (last_char == '\n') {
-        command_node *new_node = process_expression(expression_buffer);
+        command_node *new_node = process_expression(expression_buffer, lines_read);
         append_node(new_node, stream);
         clear_buffer(expression_buffer);
-      } else {
-        buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
       }
     /*} else if (c == ';' || c == '|' || c == '&' || isalnum(c) || c == ' ' || c == '/'
         || c == '>' || c == '<' || c == '!') {
       // replace this with a validation function eventually
       buffer_append(c, expression_buffer, &buffer_size, &buffer_max);*/
+    } else if (last_char == '\n') {
+      buffer_append(SEQUENCE_COMMAND, expression_buffer, &buffer_size, &buffer_max);
     } else {
       // throw error because invalid character
       buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
@@ -400,7 +415,7 @@ make_command_stream (int (*get_next_byte) (void *),
   }
 
   // now let's clean up the rest of it
-  command_node *new_node = process_expression(expression_buffer);
+  command_node *new_node = process_expression(expression_buffer, lines_rad);
   append_node(new_node, stream);
   clear_buffer(expression_buffer);
 
