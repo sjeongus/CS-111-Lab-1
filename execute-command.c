@@ -53,6 +53,8 @@ void execute_switch(command_t c)
   }
 }
 
+
+
 void executingSimple(command_t c)
 {
   int status;
@@ -102,7 +104,31 @@ void executingOr(command_t c)
 
 void executingSequence(command_t c)
 {
-
+  int status;
+  pid_t pid = fork();
+  if (pid > 0)
+  {
+    waitpid(pid, &status, 0);
+    c->status = status;
+  }
+  else if (pid == 0)
+  {
+    pid = fork();
+    if (pid > 0)
+    {
+      waitpid(pid, &status, 0);
+      execute_switch(c->u.command[1]);
+      _exit(c->u.command[1]->status);
+    }
+    else if (pid == 0)
+    {
+      execute_switch(c->u.command[0]);
+      _exit(c->u.command[0]->status);
+    }
+    else error(1, 0, "fork was unsuccessful");
+  }
+  else
+    error(1, 0, "fork was unsuccessful");
 }
 
 void executingPipe(command_t c)
@@ -134,7 +160,7 @@ void executingPipe(command_t c)
       error(1, errno, "error with dup2");
     }
     execute_switch(c->u.command[1]);
-    exit(c->u.command[1]->status);
+    _exit(c->u.command[1]->status);
   }
   else 
   {
