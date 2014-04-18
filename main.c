@@ -8,7 +8,6 @@
 #include <stdlib.h>
 
 #include "command.h"
-#include "read-command.h"
 
 static char const *program_name;
 static char const *script_name;
@@ -28,37 +27,6 @@ get_next_byte (void *stream)
 int
 main (int argc, char **argv)
 {
-  /*char arr[] = "a|b||c&&d";
-  char narr[500];
-  strcpy(narr, arr);
-
-  int buffer_max = 500;
-  int buffer_size = 0;
-  char *buffer = malloc(sizeof(char) * buffer_max);
-
-  unsigned int j;
-  for (j = 0; j < strlen(narr); j++) {
-    buffer_append(narr[j], buffer, &buffer_size, &buffer_max);
-  }
-  command_node *node = process_expression(buffer);
-  command_t cmd = node->command;
-  fprintf(stderr, "%d\n", cmd->type);
-  char *word1 = cmd->u.command[0]->u.word;
-  char *word2 = cmd->u.command[1]->u.word;
-  //char* word1 = cmd->u.word;
-  fprintf(stderr, "%s\n", word1);
-  fprintf(stderr, "%s\n", word2);
-
-  char** toks = tokenize_expression(buffer, &buffer_size);
-
-  printf("%s\n", narr);
-  printf("%s\n", buffer);
-  unsigned int k;
-  for (k = 0; k < 7; k++)
-    printf("%s\n", toks[k]);
-
-  return 0;*/
-
   int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;

@@ -84,7 +84,7 @@ void executingPipe(command_t c)
     execute_switch(c->u.command[1]);
     exit(c->u.command[1]->status);
   }
-  else 
+  else
   {
   // Parent process
     secondPid = fork(); //fork another child process
@@ -116,7 +116,7 @@ void executingPipe(command_t c)
       if (secondPid == returnedPid )
       {
         //wait for the remaining child process to terminate
-        waitpid(firstPid, &eStatus, 0); 
+        waitpid(firstPid, &eStatus, 0);
         c->status = WEXITSTATUS(eStatus);
         return;
       }
