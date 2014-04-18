@@ -277,9 +277,39 @@ handle_command (char **words, stack *cmd_stack, int num_words)
   char **commands = checked_malloc(sizeof(char*) * num_words + 1);
   int i;
   for (i = 0; i < num_words; i++) {
+    char *word = words[i];
+    int index1 = 0;
+    int index2 = strlen(word);
+
+    int j;
+    for (j = 0; j < strlen(word); j++) {
+      if (word[j] == '<') {
+        index1 = j;
+        char *input = malloc(sizeof(char) * strlen(word));
+        strncpy(input, word, j);
+        new_comm->input = malloc(sizeof(input));
+        strcpy(new_comm->input, input);
+        free(input);
+        // take everything before and put it into new_comm's input
+      } else if (word[j] == '>') {
+        index2 = j;
+        char *output = malloc(sizeof(char) * strlen(word));
+        strncpy(output, word+j, strlen(word)-j);
+        new_comm->output = malloc(sizeof(output));
+        strcpy(new_comm->output, output);
+        free(output);
+        break;
+        // take everything after and put it into new_comm's output
+      }
+    }
+
+    char *new_word = malloc(sizeof(char) * strlen(word));
+    strncpy(new_word, word+index1, index2);
+
     commands[i] = checked_malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
-    strcpy(commands[i], words[i]);
+    strcpy(commands[i], new_word);
     free(words[i]);
+    free(new_word);
   }
   commands[i] = 0;
   new_comm->u.word = commands;
