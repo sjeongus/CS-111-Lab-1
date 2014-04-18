@@ -1,11 +1,8 @@
 // UCLA CS 111 Lab 1 command reading
 
-#include "read-command.h"
-/*
 #include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
-*/
 
 #include <stdio.h>
 #include <error.h>
@@ -21,7 +18,6 @@
 #define OR_SEQ "||"
 #define AND_SEQ "&&"
 
-/*
 typedef struct command_node command_node;
 typedef struct command_stream command_stream;
 typedef struct stack stack;
@@ -50,7 +46,6 @@ struct stack
   command_t (* pop)();
   command_t (* peek)();
 };
-*/
 
 // all stack functions working properly
 void
@@ -120,21 +115,63 @@ is_operator (char c)
   }
 }
 
+bool
+is_valid_word_char (char c)
+{
+  if isalnum(c)
+    return true;
+
+  switch (c)
+  {
+    case '!':
+    case '%':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case '@':
+    case '^':
+    case '_':
+    case '<':
+    case '>':
+      return true;
+    default:
+      return false;
+  }
+}
+
+void
+print_error (int line_number, char *desc)
+{
+  fprintf(stderr, "Error on line %d: %s\n", line_number, desc);
+  free(desc);
+  exit(EXIT_FAILURE);
+}
+
 // Tested and works!
 // safe append for the buffer, reallocs as necessary
 // adds a space before each operator for 420 offdarailz tokenization
 void
 buffer_append (char c, char *buffer, int *size, int *max)
 {
+  if (!is_valid_word_char(c) && !is_operator(c) && c != ' ')
+    return;
+
   if (*size >= *max) {
     *max *= 2;
     buffer = checked_realloc(buffer, *max);
   }
 
-  if ((is_operator(c) && !is_operator(buffer[(*size)-1]))
-       || isalnum(c) && is_operator(buffer[(*size)-1])) {
+  if ((is_operator(c) && !is_operator(buffer[(*size)-1]) && buffer[(*size)-1] != ' ')
+       || is_valid_word_char(c) && is_operator(buffer[(*size)-1])) {
     buffer[*size] = ' ';
     (*size)++;
+  } else if ((c == '<' || c == '>') && buffer[(*size)-1] == ' ') {
+    (*size)--;
+  } else if (c == ' ' && (buffer[(*size)-1] == '<' || buffer[(*size)-1] == '>')) {
+    return; // don't add the character if it's a space after a file op
   }
 
   buffer[*size] = c;
@@ -144,7 +181,7 @@ buffer_append (char c, char *buffer, int *size, int *max)
 void
 clear_buffer (char *buffer)
 {
-  memset(&buffer[0], 0, sizeof(buffer));
+  memset(&buffer[0], 0, strlen(buffer));
 }
 
 // Tested and is working properly
@@ -202,7 +239,7 @@ tokenize_expression (char* buffer, int *size)
   return tokens;
 }
 
-void
+int
 handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
 {
   if (op_stack->size == 0 || is_greater_precedence(op, peek(op_stack)->type)) {
@@ -222,13 +259,15 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
         combined->u.command[1] = cmd_a;
         push(cmd_stack, combined);
       } else {
-        // throw error, why the fuck don't you have two commands
+        return -1; // it's an error
       }
     }
     command_t new_op = new_command();
     new_op->type = op;
     push(op_stack, new_op);
   }
+
+  return 1; // success
 }
 
 void
@@ -240,7 +279,6 @@ handle_command (char **words, stack *cmd_stack, int num_words)
   for (i = 0; i < num_words; i++) {
     commands[i] = checked_malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
     strcpy(commands[i], words[i]);
-    //fprintf(stderr, "%s\n", commands[i]);
     free(words[i]);
   }
   commands[i] = 0;
@@ -253,18 +291,24 @@ handle_command (char **words, stack *cmd_stack, int num_words)
 bool
 is_simple_command (char* token)
 {
+  if (token[0] == '<' || token[0] == '>') return false;
   unsigned int i;
   for (i = 0; i < strlen(token); i++) {
     //if (!isalnum(token[i])) return false;
     char c = token[i];
-    if (c == '&' || c == '|') return false;
+    if (i > 0 && token[i] == token[i-1] && (token[i] == '<' || token[i] == '>'))
+      return false;
+    if (i > 0 && (token[i] == '<' || token[i] == '>') && !is_valid_word_char(token[i-1]))
+      return false;
+    if (is_operator(c) || (!is_valid_word_char(c) && !iscntrl(c)))
+      return false;
   }
   return true;
 }
 
 // builds the tree via the two stacks method
 command_node*
-process_expression (char *buffer)
+process_expression (char *buffer, int line_number)
 {
   stack *cmd_stack = init_stack(DEFAULT_STACK_ITEMS);
   stack *op_stack = init_stack(DEFAULT_STACK_ITEMS);
@@ -279,14 +323,19 @@ process_expression (char *buffer)
 
   int i;
   int word_number = 0;
+  bool last_was_command = false;
 
   for (i = 0; i < size; i++) {
     char* token = tokens[i];
 
+    if (token[strlen(token)-1] == '<' || token[strlen(token)-1] == '>') {
+      print_error(line_number, buffer);
+    }
+
     // if the token is part of a simple command, shove it into a buffer
     if (is_simple_command(token)) {
       int buffer_max = DEFAULT_BUFFER_SIZE;
-      int buffer_size = 0;
+      last_was_command = true;
       //char *expr_buffer = malloc(sizeof(char) * buffer_max);
 
       /*unsigned int j;
@@ -298,19 +347,39 @@ process_expression (char *buffer)
       word_number++;
       //free(expr_buffer);
     } else if (token[0] == token[1]) { // now let's check if it's an operator!
-      if (token[0] == '&') {
+      if (is_operator(token[0]) && token[1] == token[2]) {
+        print_error(line_number, buffer);
+      } else if (token[0] == '&') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
-        handle_operator(AND_COMMAND, cmd_stack, op_stack);
+        if (handle_operator(AND_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
+          print_error(line_number, buffer);
+        last_was_command = false;
       } else if (token[0] == '|') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
-        handle_operator(OR_COMMAND, cmd_stack, op_stack);
+        if (handle_operator(OR_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
+          print_error(line_number, buffer);
+        last_was_command = false;
+      } else if (is_operator(token[0])) {
+        print_error(line_number, buffer);
       }
-    } else if (strlen(token) == 1 && token[0] == '|') {
-      handle_command(words, cmd_stack, word_number);
-      word_number = 0;
-      handle_operator(PIPE_COMMAND, cmd_stack, op_stack);
+    } else if (strlen(token) == 1) {
+      if (token[0] == '|') {
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
+        if (handle_operator(PIPE_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
+          print_error(line_number, buffer);
+        last_was_command = false;
+      } else if (token[0] == ';') {
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
+        if (handle_operator(SEQUENCE_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
+          print_error(line_number, buffer);
+        last_was_command = false;
+      }
+    } else {
+      print_error(line_number, buffer);
     }
   }
   if (word_number > 0)
@@ -328,6 +397,8 @@ process_expression (char *buffer)
       combined->u.command[0] = cmd_b;
       combined->u.command[1] = cmd_a;
       push(cmd_stack, combined);
+    } else {
+      print_error(line_number, buffer);
     }
   }
 
@@ -371,6 +442,12 @@ make_command_stream (int (*get_next_byte) (void *),
   stream->iterator = NULL;
 
   int lines_read = 0;
+  int subshell_count = 0;
+  int file_in = 0;
+  bool in_comment = false;
+  bool hanging_op = false;
+  bool hanging_command = false;
+
   char *expression_buffer = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
   int buffer_size = 0;
   int buffer_max = DEFAULT_BUFFER_SIZE;
@@ -379,28 +456,67 @@ make_command_stream (int (*get_next_byte) (void *),
   char last_char;
 
   while ((c = get_next_byte(get_next_byte_argument)) != EOF) {
-    if (c == '\n') {
+    if (c == '#') {
+      in_comment = true;
+    } else if (c == '\n') {
+      in_comment = false;
       lines_read++;
+
       if (last_char == '\n') {
-        command_node *new_node = process_expression(expression_buffer);
-        append_node(new_node, stream);
-        clear_buffer(expression_buffer);
-      } else {
-        buffer_append(SEQUENCE_CHAR, expression_buffer, &buffer_size, &buffer_max);
+        if (!hanging_op) {
+          command_node *new_node = process_expression(expression_buffer, lines_read);
+          append_node(new_node, stream);
+          clear_buffer(expression_buffer);
+          buffer_size = 0;
+        }
+        hanging_command = false;
+      } else if (last_char == '(' || last_char == '|') {
+        hanging_op = true;
       }
-    /*} else if (c == ';' || c == '|' || c == '&' || isalnum(c) || c == ' ' || c == '/'
-        || c == '>' || c == '<' || c == '!') {
-      // replace this with a validation function eventually
-      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);*/
+    } else if (last_char == '\n') {
+      if (hanging_command && !in_comment) {
+        print_error(lines_read, expression_buffer);
+      }
+
+      buffer_append(SEQUENCE_COMMAND, expression_buffer, &buffer_size, &buffer_max);
+      if (!in_comment)
+        buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
     } else {
       // throw error because invalid character
-      buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
+      if (!is_valid_word_char(c) && !is_operator(c) && !iscntrl(c) && c != ' ')
+        print_error(lines_read, expression_buffer);
+
+      if (is_valid_word_char(c) && !in_comment)
+        hanging_command = true;
+      else if (is_operator(c))
+        hanging_command = false;
+
+      hanging_op = false;
+
+      if (c == '(') {
+        subshell_count++;
+      } else if (c == ')') {
+        subshell_count--;
+      } else if (c == '<') {
+        file_in++;
+      } else if (c == '>') {
+        if (file_in > 0)
+          file_in--;
+        else
+          print_error(lines_read, expression_buffer);
+      }
+
+      if (!in_comment)
+        buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
     }
     last_char = c;
   }
 
+  if (subshell_count != 0 || hanging_op)
+    print_error(lines_read, expression_buffer);
+
   // now let's clean up the rest of it
-  command_node *new_node = process_expression(expression_buffer);
+  command_node *new_node = process_expression(expression_buffer, lines_read);
   append_node(new_node, stream);
   clear_buffer(expression_buffer);
 
