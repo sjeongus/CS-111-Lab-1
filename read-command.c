@@ -323,7 +323,7 @@ handle_command (char **words, stack *cmd_stack, int num_words)
       expr[size] = word[j];
       size++;
     }
-    
+
     if (i + 1 == num_words)
       break;
 
@@ -551,13 +551,7 @@ make_command_stream (int (*get_next_byte) (void *),
         subshell_count++;
       } else if (c == ')') {
         subshell_count--;
-      } /*else if (c == '<') {
-        file_in++;
-      } else if (c == '>') {
-        file_in--;
-        if (file_in < 0)
-          print_error(lines_read, expression_buffer);
-      }*/
+      }
 
       if (!in_comment)
         buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
