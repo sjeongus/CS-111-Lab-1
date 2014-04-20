@@ -53,8 +53,6 @@ void execute_switch(command_t c)
   }
 }
 
-
-
 void executingSimple(command_t c)
 {
   int status;
@@ -238,5 +236,5 @@ void
 execute_command (command_t c, bool time_travel)
 {
   //error (1, 0, "command execution not yet implemented");
-     execute_switch(c);
+  execute_switch(c);
 }
