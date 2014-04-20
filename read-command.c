@@ -189,7 +189,7 @@ clear_buffer (char *buffer)
 bool
 is_greater_precedence (command_type b, command_type a)
 {
-  //determine which has greater precedence, true if a >
+  //determine which has greater precedence, true if bb >
   if (a == SEQUENCE_COMMAND)
   {
     if (b == SEQUENCE_COMMAND)
@@ -270,19 +270,73 @@ handle_operator (command_type op, stack *cmd_stack, stack *op_stack)
   return 1; // success
 }
 
+char*
+strip_io_redirect (const char const *cmd, command_t new_cmd, char redirect)
+{
+  int length = strlen(cmd);
+  char *file = malloc(sizeof(char) * length);
+  char *rem = malloc(sizeof(char) * length);
+
+  if (cmd == NULL || (redirect != '<' && redirect != '>'))
+    return cmd;
+
+  int i;
+  for (i = length; i >= 0; i--) {
+    if (cmd[i] == redirect) {
+      strncpy(file, cmd+i+1, length-i);
+      strncpy(rem, cmd, i);
+      break;
+    }
+  }
+
+  if (strlen(file) == 0 || strlen(rem) == 0)
+    return cmd;
+
+  if (redirect == '<')
+    new_cmd->input = file;
+  else
+    new_cmd->output = file;
+
+  return rem;
+}
+
 void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
   command_t new_comm = new_command();
-  char **commands = checked_malloc(sizeof(char*) * num_words + 1);
+
+  char *expr = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  char **out = checked_malloc(sizeof(char*));
+  int size = 0;
+  int max = DEFAULT_BUFFER_SIZE;
+
+  // reassemble the command because yolo
   int i;
   for (i = 0; i < num_words; i++) {
-    commands[i] = checked_malloc(DEFAULT_BUFFER_SIZE * sizeof(char));
-    strcpy(commands[i], words[i]);
-    free(words[i]);
+    char *word = words[i];
+    int j;
+    for (j = 0; j < strlen(word); j++) {
+      if (size > max) {
+        max = max * 2;
+        expr = checked_realloc(expr, max);
+      }
+      expr[size] = word[j];
+      size++;
+    }
+
+    if (i + 1 == num_words)
+      break;
+
+    expr[size] = ' ';
+    size++;
   }
-  commands[i] = 0;
-  new_comm->u.word = commands;
+
+  expr = strip_io_redirect(expr, new_comm, '>');
+  expr = strip_io_redirect(expr, new_comm, '<');
+
+  out[0] = expr;
+
+  new_comm->u.word = out;
   new_comm->type = SIMPLE_COMMAND;
   push(cmd_stack, new_comm);
 }
@@ -497,13 +551,6 @@ make_command_stream (int (*get_next_byte) (void *),
         subshell_count++;
       } else if (c == ')') {
         subshell_count--;
-      } else if (c == '<') {
-        file_in++;
-      } else if (c == '>') {
-        if (file_in > 0)
-          file_in--;
-        else
-          print_error(lines_read, expression_buffer);
       }
 
       if (!in_comment)
