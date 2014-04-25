@@ -2,6 +2,7 @@
 
 #include "command.h"
 #include "command-internals.h"
+#include "alloc.h"
 
 #include <error.h>
 #include <unistd.h>
@@ -12,6 +13,74 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+
+#define GRAPH_SIZE 20
+
+typedef struct {
+  char* word;
+  struct list_node *next;
+} list_node;
+
+typedef struct {
+  list_node *head;
+  int size;
+} list;
+
+typedef struct {
+  command_t command;
+  pid_t pid;
+  struct graph_node *before;
+} graph_node;
+
+typedef struct {
+  graph_node *node;
+  list* read_list;
+  list* write_list;
+} queue_node;
+
+typedef struct {
+  queue_node* no_dependencies[GRAPH_SIZE];
+  queue_node* dependencies[GRAPH_SIZE];
+} dependency_graph;
+
+void
+list_insert (list *self, char* word)
+{
+  list_node *node = malloc(sizeof(list_node));
+  node->word = word;
+  if (self->head == NULL) {
+    node->next = NULL;
+    self->head = node;
+  } else {
+    node->next = self->head;
+    self->head = node;
+  }
+}
+
+void
+list_remove (list *self)
+{
+  if (self->head == NULL)
+    return;
+  else if (self->head->next == NULL) {
+    list_node *top = self->head;
+    self->head = NULL;
+    free(top);
+  } else {
+    list_node *top = self->head;
+    self->head = self->head->next;
+    free(top);
+  }
+}
+
+list*
+init_list (int size)
+{
+  list *new = checked_malloc(sizeof(list));
+  new->size = size;
+  new->head = NULL;
+  return new;
+}
 
 int
 command_status (command_t c)
