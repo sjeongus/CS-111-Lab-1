@@ -23,6 +23,8 @@ typedef struct command_stream command_stream;
 typedef struct stack stack;
 typedef enum command_type command_type;
 
+command_node* process_expression (char*, int);
+
 struct command_node
 {
   command_t command;
@@ -109,6 +111,7 @@ is_operator (char c)
     case '&':
     case ';':
     case '(':
+    case ')':
       return true;
     default:
       return false;
@@ -362,6 +365,53 @@ is_simple_command (char* token)
   return true;
 }
 
+command_t
+process_subshell (char** buffer, int size, int* num, int line_number)
+{
+  char* subshell_buffer = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  int paren_count = 1;
+  int buf_size = 0;
+  int max = DEFAULT_BUFFER_SIZE;
+  (*num)++;
+
+  for(; *num < size; (*num)++) {
+    char* sub_token = buffer[*num];
+    int toklen = strlen(sub_token);
+    if (sub_token[0] == '(') {
+      paren_count++;
+      //process_subshell(buffer, size, &num);
+    }
+    else if (sub_token[0] == ')')
+      paren_count--;
+    if (paren_count == 0)
+      break;
+    int j;
+    for (j = 0; j < toklen; j++) {
+      if (size > max) {
+        max = max * 2;
+        subshell_buffer = checked_realloc(subshell_buffer, max);
+      }
+      subshell_buffer[buf_size] = sub_token[j];
+      buf_size++;
+    }
+    /*if (*num + 1 == buf_size)
+      break;*/
+    subshell_buffer[buf_size] = ' ';
+    buf_size++;
+  }
+  command_node* snode = process_expression(subshell_buffer, line_number);
+  command_t n_command = snode->command;
+
+  command_t shell_command = checked_malloc(sizeof(struct command));
+  shell_command->type = SUBSHELL_COMMAND;
+  shell_command->status = -1;
+  shell_command->input = 0;
+  shell_command->output = 0;
+  shell_command->u.subshell_command = n_command;
+
+  return shell_command;
+}
+
 // builds the tree via the two stacks method
 command_node*
 process_expression (char *buffer, int line_number)
@@ -421,7 +471,10 @@ process_expression (char *buffer, int line_number)
         print_error(line_number, buffer);
       }
     } else if (strlen(token) == 1) {
-      if (token[0] == '|') {
+      if (token[0] == '(') {
+        command_t sub = process_subshell(tokens, size, &i, line_number);
+        push(cmd_stack, sub);
+      } else if (token[0] == '|') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
         if (handle_operator(PIPE_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
@@ -540,7 +593,10 @@ make_command_stream (int (*get_next_byte) (void *),
     } else {
       // throw error because invalid character
       if (!is_valid_word_char(c) && !is_operator(c) && !iscntrl(c) && c != ' ')
+      {
+        fprintf(stderr, "Invalid character\n");
         print_error(lines_read, expression_buffer);
+      }
 
       if (is_valid_word_char(c) && !in_comment)
         hanging_command = true;
@@ -561,8 +617,10 @@ make_command_stream (int (*get_next_byte) (void *),
     last_char = c;
   }
 
-  if (subshell_count != 0 || hanging_op)
+  if (subshell_count != 0 || hanging_op) {
+    fprintf(stderr, "Subshell mismatch\n");
     print_error(lines_read, expression_buffer);
+  }
 
   // now let's clean up the rest of it
   command_node *new_node = process_expression(expression_buffer, lines_read);

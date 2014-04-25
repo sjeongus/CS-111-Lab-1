@@ -7,7 +7,6 @@ command.h
 command-internals.h
 execute-command.c
 execute-command.o
-lab1-root
 ls.txt
 main.c
 main.o
@@ -20,7 +19,7 @@ read-command.o
 README
 test2.sh
 test3.sh
-testok.sh
+test4.sh
 test-p-bad.sh
 test-p-ok.sh
 test.sh

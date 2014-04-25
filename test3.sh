@@ -1,2 +1,3 @@
 ls || w && ps;
-cat < ls.txt
+cat < ls.txt;
+echo asdf && (echo abc || efg)
