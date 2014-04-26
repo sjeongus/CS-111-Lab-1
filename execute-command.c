@@ -125,6 +125,7 @@ void executingSubshell(command_t c)
     }
 
     execute_switch(c->u.subshell_command);
+    c->status = 0;
   }
   else
     error (1, 0, "Error with subshells.");

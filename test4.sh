@@ -1,1 +1,1 @@
-echo a && (echo b && echo c && (echo d && echo e))
+(cat < hello.txt) && echo goodbye
