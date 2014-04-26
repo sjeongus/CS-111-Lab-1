@@ -17,36 +17,36 @@
 #define GRAPH_SIZE 30
 #define DEFAULT_WORDS 5
 
-typedef struct list_node {
+struct list_node {
   char* word;
   struct list_node *next;
-} list_node;
+};
 
-typedef struct list {
+struct list {
   list_node *head;
   int size;
-} list;
+};
 
-typedef struct graph_node {
+struct graph_node {
   command_t command;
   pid_t pid;
   struct graph_node **before;
   int words;
   int max_words;
-} graph_node;
+};
 
-typedef struct queue_node {
+struct queue_node {
   graph_node *node;
   list* read_list;
   list* write_list;
-} queue_node;
+};
 
-typedef struct dependency_graph {
+struct dependency_graph {
   queue_node* no_dependencies[GRAPH_SIZE];
   queue_node* dependencies[GRAPH_SIZE];
   int num_nodepen;
   int num_depen;
-} dependency_graph;
+};
 
 void
 list_insert (list *self, char* word)
@@ -427,4 +427,51 @@ create_graph(command_stream_t stream)
     build_dependencies(qnode, graph);
   }
   return graph;
+}
+
+void
+execute_no_dependencies(queue_node** ndp)
+{
+  int i;
+  for (i = 0; i < GRAPH_SIZE; i++) {
+    if (ndp[i] == NULL) break;
+    pid_t pid = fork();
+    if (pid == 0) {
+      execute_command(ndp[i]->node->command, true);
+      _exit(0);
+    } else if (pid > 0) {
+      ndp[i]->node->pid = pid;
+    }
+  }
+}
+
+void
+execute_dependencies(queue_node** dp)
+{
+  int i;
+  for (i = 0; i < GRAPH_SIZE; i++) {
+    int j;
+    // polling
+    for (j = 0; j < dp[i]->node->words; j++) {
+      if (dp[i]->node->before[j]->pid == -1)
+        break;
+    }
+    int status;
+    for (j = 0; j < dp[i]->node->words; j++) {
+      waitpid(dp[i]->node->pid, &status, 0);
+    }
+    pid_t pid = fork();
+    if (pid == 0) {
+      execute_command(dp[i]->node->command, true);
+    } else if (pid > 0) {
+      dp[i]->node->pid = pid;
+    }
+  }
+}
+
+void
+execute_graph(dependency_graph *graph)
+{
+  execute_no_dependencies(graph->no_dependencies);
+  execute_dependencies(graph->dependencies);
 }
