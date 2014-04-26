@@ -112,6 +112,7 @@ is_operator (char c)
     case ';':
     case '(':
     case ')':
+    case '\n':
       return true;
     default:
       return false;
@@ -515,6 +516,12 @@ process_expression (char *buffer, int line_number)
         if (handle_operator(PIPE_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
           print_error(line_number, buffer);
         last_was_command = false;
+      } else if (token[0] == '\n') {
+        handle_command(words, cmd_stack, word_number);
+        word_number = 0;
+        if (handle_operator(SEQUENCE_COMMAND, cmd_stack, op_stack) == -1 || !last_was_command)
+          print_error(line_number, buffer);
+        last_was_command = false;
       } else if (token[0] == ';') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
@@ -622,9 +629,11 @@ make_command_stream (int (*get_next_byte) (void *),
         print_error(lines_read, expression_buffer);
       }
 
-      buffer_append(SEQUENCE_COMMAND, expression_buffer, &buffer_size, &buffer_max);
-      if (!in_comment)
+      //buffer_append(SEQUENCE_COMMAND, expression_buffer, &buffer_size, &buffer_max);
+      if (!in_comment) {
+        //buffer_append('\n', expression_buffer, &buffer_size, &buffer_max);
         buffer_append(c, expression_buffer, &buffer_size, &buffer_max);
+      }
     } else {
       // throw error because invalid character
       if (!is_valid_word_char(c) && !is_operator(c) && !iscntrl(c) && c != ' ')
