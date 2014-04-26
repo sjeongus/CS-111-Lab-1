@@ -51,6 +51,7 @@ struct dependency_graph {
 void
 list_insert (list *self, char* word)
 {
+  if (word == NULL) return;
   list_node *node = malloc(sizeof(list_node));
   node->word = word;
   if (self->head == NULL) {
@@ -349,14 +350,19 @@ bool
 contains (list *a, list *b)
 {
   list_node *a_i = a->head;
-  while (a_i != NULL) {
+  int i = 0;
+  while (i < a->size) {
+    if (a_i == NULL) break;
     list_node *b_i = b->head;
-    while (b_i != NULL) {
+    int j = 0;
+    while (j < b->size) {
       if (strcmp(a_i->word, b_i->word) == 0)
         return true;
       b_i = b_i->next;
+      j++;
     }
     a_i = a_i->next;
+    i++;
   }
   return false;
 }
@@ -366,32 +372,36 @@ build_dependencies(queue_node *qnode, dependency_graph *graph)
 {
   int i;
   for (i = 0; i < GRAPH_SIZE; i++) {
+    if (i > graph->num_nodepen && i > graph->num_depen) break;
+
     queue_node *ndp_node = graph->no_dependencies[i];
     queue_node *dp_node = graph->dependencies[i];
-    if (ndp_node == NULL && dp_node == NULL)
-      break;
 
     // check each read/write list of both no dependencies and dependencies
     // if any dependency is found, add that node into before
-    if (contains(qnode->read_list, ndp_node->write_list) ||
-        contains(qnode->write_list, ndp_node->read_list) ||
-        contains(qnode->write_list, ndp_node->write_list)) {
-        qnode->node->before[qnode->node->words] = ndp_node->node;
-        qnode->node->words++;
-        if (qnode->node->words > qnode->node->max_words) {
-          qnode->node->max_words *= 2;
-          qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
-        }
+    if (i > graph->num_nodepen) {
+      if (contains(qnode->read_list, ndp_node->write_list) ||
+          contains(qnode->write_list, ndp_node->read_list) ||
+          contains(qnode->write_list, ndp_node->write_list)) {
+          qnode->node->before[qnode->node->words] = ndp_node->node;
+          qnode->node->words++;
+          if (qnode->node->words > qnode->node->max_words) {
+            qnode->node->max_words *= 2;
+            qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
+          }
+      }
     }
-    if (contains(qnode->read_list, dp_node->write_list) ||
-        contains(qnode->write_list, dp_node->read_list) ||
-        contains(qnode->write_list, dp_node->write_list)) {
-        qnode->node->before[qnode->node->words] = dp_node->node;
-        qnode->node->words++;
-        if (qnode->node->words > qnode->node->max_words) {
-          qnode->node->max_words *= 2;
-          qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
-        }
+    if (i > graph->num_depen) {
+      if (contains(qnode->read_list, dp_node->write_list) ||
+          contains(qnode->write_list, dp_node->read_list) ||
+          contains(qnode->write_list, dp_node->write_list)) {
+          qnode->node->before[qnode->node->words] = dp_node->node;
+          qnode->node->words++;
+          if (qnode->node->words > qnode->node->max_words) {
+            qnode->node->max_words *= 2;
+            qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
+          }
+      }
     }
   }
 
