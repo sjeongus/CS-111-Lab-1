@@ -384,24 +384,24 @@ build_dependencies(queue_node *qnode, dependency_graph *graph)
 
     // check each read/write list of both no dependencies and dependencies
     // if any dependency is found, add that node into before
-    if (i > graph->num_nodepen) {
+    if (i < graph->num_nodepen) {
       if (contains(qnode->read_list, ndp_node->write_list) ||
           contains(qnode->write_list, ndp_node->read_list) ||
           contains(qnode->write_list, ndp_node->write_list)) {
           qnode->node->before[qnode->node->words] = ndp_node->node;
-          qnode->node->words++;
+          qnode->node->words = qnode->node->words + 1;
           if (qnode->node->words > qnode->node->max_words) {
             qnode->node->max_words *= 2;
             qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
           }
       }
     }
-    if (i > graph->num_depen) {
+    if (i < graph->num_depen) {
       if (contains(qnode->read_list, dp_node->write_list) ||
           contains(qnode->write_list, dp_node->read_list) ||
           contains(qnode->write_list, dp_node->write_list)) {
           qnode->node->before[qnode->node->words] = dp_node->node;
-          qnode->node->words++;
+          qnode->node->words = qnode->node->words + 1;
           if (qnode->node->words > qnode->node->max_words) {
             qnode->node->max_words *= 2;
             qnode->node->before = checked_realloc(qnode->node->before, qnode->node->max_words);
