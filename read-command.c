@@ -306,6 +306,8 @@ strip_io_redirect (const char const *cmd, command_t new_cmd, char redirect)
 void
 handle_command (char **words, stack *cmd_stack, int num_words)
 {
+  if (words[0] == 0)
+    return;
   command_t new_comm = new_command();
 
   char *expr = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
@@ -399,14 +401,46 @@ process_subshell (char** buffer, int size, int* num, int line_number)
     subshell_buffer[buf_size] = ' ';
     buf_size++;
   }
+  char* input = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  char* output = checked_malloc(sizeof(char) * DEFAULT_BUFFER_SIZE);
+  if (*num < size && strlen(buffer[*num]) > 2) {
+    char* bufnum = buffer[(*num)];
+    if (bufnum[1] == '<') {
+      if (is_simple_command(buffer[*num]+2)) {
+        fprintf(stderr, "Got input\n");
+        strcpy(input, buffer[*num]+2);
+        output = 0;
+      }
+      else
+        print_error(line_number, "Error with subshell input");
+    }
+    else if (bufnum[1] == '>') {
+      if (is_simple_command(buffer[*num]+2)) {
+        fprintf(stderr, "Got output\n");
+        strcpy(output, buffer[*num]+2);
+        input = 0;
+      }
+      else
+        print_error(line_number, "Error with subshell output");
+    }
+    else {
+      input = 0;
+      output = 0;
+    }
+  }
+  else {
+    input = 0;
+    output = 0;
+  }
+
   command_node* snode = process_expression(subshell_buffer, line_number);
   command_t n_command = snode->command;
 
   command_t shell_command = checked_malloc(sizeof(struct command));
   shell_command->type = SUBSHELL_COMMAND;
   shell_command->status = -1;
-  shell_command->input = 0;
-  shell_command->output = 0;
+  shell_command->input = input;
+  shell_command->output = output;
   shell_command->u.subshell_command = n_command;
 
   return shell_command;
@@ -474,6 +508,7 @@ process_expression (char *buffer, int line_number)
       if (token[0] == '(') {
         command_t sub = process_subshell(tokens, size, &i, line_number);
         push(cmd_stack, sub);
+        last_was_command = true;
       } else if (token[0] == '|') {
         handle_command(words, cmd_stack, word_number);
         word_number = 0;
