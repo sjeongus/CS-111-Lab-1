@@ -334,10 +334,15 @@ process_command(command_t cmd, queue_node *node)
       list_insert(node->read_list, cmd->u.word[i]);
       i++;
     }
-    list_insert(node->read_list, cmd->input);
+    if (cmd->input != NULL)
+      list_insert(node->read_list, cmd->input);
+    if (cmd->output != NULL)
+      list_insert(node->write_list, cmd->output);
   } else if (cmd->type == SUBSHELL_COMMAND) {
-    list_insert(node->read_list, cmd->input);
-    list_insert(node->write_list, cmd->output);
+    if (cmd->input != NULL)
+      list_insert(node->read_list, cmd->input);
+    if (cmd->output != NULL)
+      list_insert(node->write_list, cmd->output);
     process_command(cmd->u.subshell_command, node);
   } else {
     process_command(cmd->u.command[0], node);
@@ -407,10 +412,10 @@ build_dependencies(queue_node *qnode, dependency_graph *graph)
 
   if (qnode->node->before == NULL) {
     graph->no_dependencies[graph->num_nodepen] = qnode;
-    graph->num_nodepen++;
+    graph->num_nodepen = graph->num_nodepen + 1;
   } else {
     graph->dependencies[graph->num_depen] = qnode;
-    graph->num_depen++;
+    graph->num_depen = graph->num_depen + 1;
   }
 }
 
@@ -448,8 +453,9 @@ execute_no_dependencies(queue_node** ndp)
     pid_t pid = fork();
     if (pid == 0) {
       execute_command(ndp[i]->node->command, true);
-      _exit(0);
-    } else if (pid > 0) {
+      _exit(ndp[i]->node->command->status);
+    }
+    if (pid > 0) {
       ndp[i]->node->pid = pid;
     }
   }
@@ -460,20 +466,27 @@ execute_dependencies(queue_node** dp)
 {
   int i;
   for (i = 0; i < GRAPH_SIZE; i++) {
+    if (dp[i]->node == NULL) break;
+    looplabel: ;
     int j;
     // polling
-    for (j = 0; j < dp[i]->node->words; j++) {
+    for (j = 0; j < dp[i]->node->before[j] != NULL; j++) {
       if (dp[i]->node->before[j]->pid == -1)
-        break;
+        goto looplabel;
     }
     int status;
-    for (j = 0; j < dp[i]->node->words; j++) {
-      waitpid(dp[i]->node->pid, &status, 0);
+    for (j = 0; j < dp[i]->node->before[j] != NULL; j++) {
+      waitpid(dp[i]->node->before[j]->pid, &status, 0);
     }
     pid_t pid = fork();
+    if (pid < 0) {
+      error(1, errno, "Unsuccessful fork.");
+    }
     if (pid == 0) {
       execute_command(dp[i]->node->command, true);
-    } else if (pid > 0) {
+      _exit(dp[i]->node->command->status);
+    }
+    if (pid > 0) {
       dp[i]->node->pid = pid;
     }
   }
@@ -484,4 +497,9 @@ execute_graph(dependency_graph *graph)
 {
   execute_no_dependencies(graph->no_dependencies);
   execute_dependencies(graph->dependencies);
+  int i, status;
+  for (i = 0; i < graph->num_nodepen; i++)
+    waitpid(graph->no_dependencies[i]->node->pid, &status, 0);
+  for (i = 0; i < graph->num_depen; i++)
+    waitpid(graph->dependencies[i]->node->pid, &status, 0);
 }
