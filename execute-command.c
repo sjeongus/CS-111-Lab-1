@@ -466,7 +466,7 @@ execute_dependencies(queue_node** dp)
 {
   int i;
   for (i = 0; i < GRAPH_SIZE; i++) {
-    if (dp[i]->node == NULL) break;
+    if (dp[i] == NULL || dp[i]->node == NULL) break;
     looplabel: ;
     int j;
     // polling
