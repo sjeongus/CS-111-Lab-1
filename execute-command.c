@@ -500,12 +500,12 @@ execute_dependencies(queue_node** dp)
     looplabel: ;
     int j;
     // polling
-    for (j = 0; j < dp[i]->node->before[j] != NULL; j++) {
+    for (j = 0; dp[i]->node->before[j] != NULL; j++) {
       if (dp[i]->node->before[j]->pid == -1)
         goto looplabel;
     }
     int status;
-    for (j = 0; j < dp[i]->node->before[j] != NULL; j++) {
+    for (j = 0; dp[i]->node->before[j] != NULL; j++) {
       waitpid(dp[i]->node->before[j]->pid, &status, 0);
     }
     pid_t pid = fork();
